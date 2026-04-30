@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Mirror Web</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav id="top-nav" class="hidden">
+        <button id="btn-home">🏠 Inicio</button>
+        <span id="section-title">Sección</span>
+    </nav>
+
+    <section id="sec-home" class="active">
+        <div class="hero">
+            <h1>AR Mirror Web</h1>
+            <div class="menu-grid">
+                <button class="card" onclick="window.showSection('animals')">🦁 Animales AR</button>
+                <button class="card" onclick="window.showSection('game')">🐦 Flappy Nose</button>
+                <button class="card" onclick="window.showSection('senias')">✋ Traductor de señas</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="sec-app" class="hidden">
+        <div class="canvas-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="output_canvas"></canvas>
+            <!-- Dentro de <div class="canvas-container"> en index.html[cite: 12] -->
+            <div id="game-over-screen" class="hidden">
+                <div class="menu-box">
+                    <h2>¡Puntuación Final!</h2>
+                    <h1 id="final-score">0</h1>
+                    <button id="restart-btn">Intentar de Nuevo</button>
+                    <button onclick="window.showSection('home')">Menú Principal</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
