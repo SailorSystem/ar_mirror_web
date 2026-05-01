@@ -1,5 +1,6 @@
 import { initFlappyGame, stopFlappyGame } from './section-game.js';
 // Importa section-ar si ya lo tienes listo
+import { initSenias, stopSenias } from './section-senias.js'; // Nueva
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
@@ -11,6 +12,7 @@ window.showSection = async function(sectionId) {
     nav.classList.add('hidden');
 
     stopFlappyGame(); // Detener juego si estaba activo
+    stopSenias();
 
     if (sectionId === 'home') {
         document.getElementById('sec-home').classList.remove('hidden');
@@ -20,9 +22,11 @@ window.showSection = async function(sectionId) {
         nav.classList.remove('hidden');
         await startCamera();
         
-        if (sectionId === 'game') {
-            document.getElementById('section-title').innerText = "Flappy Nose";
-            initFlappyGame();
+        if (sectionId === 'game') initFlappyGame();
+        if (sectionId === 'animals') initAnimalsAR();
+        if (sectionId === 'senias') {
+            document.getElementById('section-title').innerText = "Traductor de Señas";
+            initSenias();
         }
     }
 };
@@ -30,13 +34,20 @@ window.showSection = async function(sectionId) {
 document.getElementById('btn-home').onclick = () => window.showSection('home');
 
 async function startCamera() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('hidden');
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user", width: 640, height: 480 }
+            // Mejora para móviles: usa la resolución disponible
+            video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         video.srcObject = stream;
-        return new Promise(resolve => video.onloadedmetadata = resolve);
-    } catch (e) { alert("Error cámara: " + e); }
+        await new Promise(resolve => video.onloadedmetadata = resolve);
+        overlay.classList.add('hidden'); // Solo quitamos carga cuando el video fluye
+    } catch (e) { 
+        overlay.classList.add('hidden');
+        alert("No se detectó cámara o acceso denegado."); 
+    }
 }
 
 function stopCamera() {
