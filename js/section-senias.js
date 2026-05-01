@@ -4,6 +4,11 @@ let handLandmarker;
 let running = false;
 let canvas, ctx, drawingUtils;
 
+const DICTIONARY_CATALOG = [
+    "a", "b", "c", "ch", "d", "e", "f", "g", "h", "i", "j", "k", "l", "ll", "m", "n", "ñ", "o", "p", "q", "r", "rr", "s", "t", "u", "v", "w", "x", "y", "z",
+    "Buenos días"
+];
+
 export async function initSenias() {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
@@ -73,8 +78,9 @@ function interpretGesture(lm) {
     const t = isExtended(4, 2); // Pulgar[cite: 26]
 
     // DICCIONARIO EXTENDIDO[cite: 26, 30]
-    if (i && m && r && p && t) return "Mano Abierta (5)";
-    if (!i && !m && !r && !p && !t) return "Puño (A)";
+    if (i && m && r && p && t) return "Letra B / 5";
+    if (!i && !m && !r && !p && !t) return "Letra A / E / S (puño)";
+    if (thumbNearIndexBase && !i && !m && !r && !p) return "Letra O (aprox.)";
     if (i && !m && !r && !p && t) return "Letra L";
     if (i && m && !r && !p && !t) return "Número 2 (V)";
     if (i && m && r && !p && !t) return "Número 3";
@@ -82,9 +88,9 @@ function interpretGesture(lm) {
     if (i && m && r && p && !t) return "Número 4";
     if (thumbNearIndexBase && i && m && r && p) return "Letra B";
     if (!i && !m && !r && p && !t) return "Letra I";
-    if (i && !m && !r && p && t) return "Símbolo Rock";
-    if (i && !m && !r && !p && !t) return "Número 1";
-    if (!i && m && r && p && t) return "Letra B";
+    if (i && !m && !r && p && t) return "Letra Y / Rock";
+    if (i && !m && !r && !p && !t) return "Letra D / G / 1 (aprox.)";
+    if (!i && m && r && p && t) return "Letra C (aprox.)";
     if (t && !i && !m && !r && !p) return "Pulgar Arriba (Bien)";
     if (pinch && !m && !r && !p) return "Pinza (OK simple)";
     if (pinch && m && r && p) return "Letra F / OK";
