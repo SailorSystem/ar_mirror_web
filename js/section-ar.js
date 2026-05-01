@@ -42,4 +42,32 @@ function render() {
     requestAnimationFrame(render);
 }
 
+function checkSign(landmarks) {
+    // Índices de MediaPipe: 8 (Índice), 12 (Medio), 16 (Anular), 20 (Meñique)
+    // Nudillos base: 5, 9, 13, 17
+    
+    const isFingerDown = (tip, base) => landmarks[tip].y > landmarks[base].y;
+    
+    let gesture = "Detectando...";
+
+    // Lógica para letra 'A' (Puño cerrado, pulgar a un lado)
+    const fingersDown = isFingerDown(8, 5) && isFingerDown(12, 9) && 
+                        isFingerDown(16, 13) && isFingerDown(20, 17);
+    
+    // Lógica para letra 'B' (Mano abierta, dedos juntos)
+    const fingersUp = !isFingerDown(8, 5) && !isFingerDown(12, 9) && 
+                      !isFingerDown(16, 13) && !isFingerDown(20, 17);
+
+    if (fingersDown) gesture = "Letra: A";
+    else if (fingersUp) gesture = "Letra: B";
+
+    // Dibujar en pantalla con estilo
+    ctx.fillStyle = "rgba(0, 255, 136, 0.8)";
+    ctx.roundRect(20, 20, 250, 60, 15);
+    ctx.fill();
+    ctx.fillStyle = "black";
+    ctx.font = "bold 30px Arial";
+    ctx.fillText(gesture, 40, 60);
+}
+
 export function stopAnimalsAR() { running = false; }
