@@ -22,8 +22,14 @@ window.showSection = async function(sectionId) {
         nav.classList.remove('hidden');
         await startCamera();
         
-        if (sectionId === 'game') initFlappyGame();
-        if (sectionId === 'animals') initAnimalsAR();
+        if (sectionId === 'game') {
+            document.getElementById('section-title').innerText = "Flappy Nose";
+            initFlappyGame();
+        }
+        if (sectionId === 'animals') {
+            document.getElementById('section-title').innerText = "Animales AR";
+            initAnimalsAR();
+        }
         if (sectionId === 'senias') {
             document.getElementById('section-title').innerText = "Traductor de Señas";
             initSenias();
