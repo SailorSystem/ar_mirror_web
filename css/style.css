@@ -50,6 +50,12 @@ nav {
     background: rgba(15, 23, 42, 0.8); display: flex;
     align-items: center; justify-content: space-between;
     padding: 0 20px; z-index: 100; backdrop-filter: blur(10px);
+    box-sizing: border-box;
+}
+
+#section-title {
+    font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
 /* Loader */
