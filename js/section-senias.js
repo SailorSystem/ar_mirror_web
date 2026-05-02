@@ -82,29 +82,27 @@ function interpretGesture(lm) {
     if (!i && !m && !r && !p && !t) return "Letra A / E / S (puño)";
     if (thumbNearIndexBase && !i && !m && !r && !p) return "Letra O (aprox.)";
     if (i && !m && !r && !p && t) return "Letra L";
-    if (i && m && !r && !p && !t) return "Letra V / U (aprox.)";
-    if (i && m && r && !p && !t) return "Letra W / Número 3";
+    if (i && m && !r && !p && !t) return "Número 2 (V)";
+    if (i && m && r && !p && !t) return "Número 3";
     if (t && i && !m && !r && !p) return "Pistola / Letra L variante";
-    if (i && m && r && p && !t) return "Letra B (pulgar cerrado) / Número 4";
+    if (i && m && r && p && !t) return "Número 4";
     if (thumbNearIndexBase && i && m && r && p) return "Letra B";
     if (!i && !m && !r && p && !t) return "Letra I";
     if (i && !m && !r && p && t) return "Letra Y / Rock";
     if (i && !m && !r && !p && !t) return "Letra D / G / 1 (aprox.)";
     if (!i && m && r && p && t) return "Letra C (aprox.)";
     if (t && !i && !m && !r && !p) return "Pulgar Arriba (Bien)";
-    if (pinch && !m && !r && !p) return "Letra F / OK";
-    if (pinch && m && r && p) return "Letra O / F (aprox.)";
-    if (!i && m && !r && !p && !t) return "Letra R (aprox.)";
-    if (!i && m && r && !p && !t) return "Letra H / K (aprox.)";
-    if (!i && !m && r && p && !t) return "Letra U (aprox.)";
+    if (pinch && !m && !r && !p) return "Pinza (OK simple)";
+    if (pinch && m && r && p) return "Letra F / OK";
+    if (!i && m && !r && !p && !t) return "Letra U (aprox.)";
+    if (!i && m && r && !p && !t) return "Letra W (aprox.)";
+    if (!i && !m && r && p && !t) return "Gesto 2 dedos laterales";
     if (!i && !m && !r && p && t) return "Letra Y";
-    if (i && m && !r && !p && t) return "Letra K / P (aprox.)";
-    if (i && !m && r && !p && !t) return "Letra RR (aprox.)";
-    if (!i && m && !r && p && !t) return "Letra N / Ñ (aprox.)";
-    if (Math.abs(lm[8].x - lm[12].x) < 0.03 && i && m && !r && !p) return "Letra R";
-    if (dist(8, 4) < 0.04 && !m && !r && !p) return "Letra D (aprox.)";
-
-    return "Analizando... (diccionario ampliado A-Z, CH, LL, Ñ y saludo)";
+    if (i && m && !r && !p && t) return "Número 8 (aprox.)";
+    if (i && !m && r && !p && !t) return "Seña combinada (I-R)";
+    if (!i && m && !r && p && !t) return "Seña combinada (M-P)";
+    
+    return "Analizando...";
 }
 
 function drawUI(text) {
@@ -114,14 +112,14 @@ function drawUI(text) {
 
     const maxWidth = Math.min(canvas.width - 40, 1100);
     const x = canvas.width / 2;
-    const y = 115; // evita chocar con el nav superior
+    const y = 110; // evita chocar con el nav superior
 
     ctx.font = "bold 28px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
     const width = Math.min(ctx.measureText(text).width + 48, maxWidth);
-    const height = 86;
+    const height = 50;
     const left = x - width / 2;
     const top = y - height / 2;
 
@@ -133,29 +131,8 @@ function drawUI(text) {
     ctx.stroke();
 
     ctx.fillStyle = "#00ff88";
-    ctx.fillText(text, x, y - 14);
-
-    const subtitle = fitText(`Diccionario: ${DICTIONARY_CATALOG.join(", ")}`, maxWidth - 30, "600 15px Arial");
-    ctx.font = "600 15px Arial";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(subtitle, x, y + 18);
+    ctx.fillText(text, x, y);
     ctx.restore();
-}
-
-function fitText(text, maxWidth, font) {
-    ctx.save();
-    ctx.font = font;
-    if (ctx.measureText(text).width <= maxWidth) {
-        ctx.restore();
-        return text;
-    }
-
-    let output = text;
-    while (output.length > 0 && ctx.measureText(`${output}...`).width > maxWidth) {
-        output = output.slice(0, -1);
-    }
-    ctx.restore();
-    return `${output}...`;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
