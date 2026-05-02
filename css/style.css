@@ -31,6 +31,9 @@ body {
 }
 
 .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+.card-brand { border-color: #7ce38b; }
+.group-title { margin: 8px 0 0; color: #b6ffd7; font-size: 1.25rem; }
+.menu-games { margin-top: 0; }
 
 /* App y Cámara */
 .canvas-container {
