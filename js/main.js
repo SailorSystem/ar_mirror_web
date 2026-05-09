@@ -8,12 +8,15 @@ import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
+const sectionTitle = document.getElementById('section-title');
 
 initHomeScene();
 bindHomeCardEffects();
 
 // IMPORTANTE: Exponer a window para que el HTML lo vea
 window.showSection = async function(sectionId) {
+    await stopActiveSections();
+
     document.getElementById('sec-home').classList.add('hidden');
     document.getElementById('sec-app').classList.add('hidden');
     nav.classList.add('hidden');
@@ -28,9 +31,20 @@ window.showSection = async function(sectionId) {
     if (sectionId === 'home') {
         document.getElementById('sec-home').classList.remove('hidden');
         stopCamera();
-    } else {
-        document.getElementById('sec-app').classList.remove('hidden');
-        nav.classList.remove('hidden');
+        return;
+    }
+
+    const config = sectionConfig[sectionId];
+    if (!config) {
+        window.showSection('home');
+        return;
+    }
+
+    document.getElementById('sec-app').classList.remove('hidden');
+    nav.classList.remove('hidden');
+    sectionTitle.innerText = config.title;
+
+    try {
         await startCamera();
         
         if (sectionId === 'game') {
@@ -62,20 +76,43 @@ window.showSection = async function(sectionId) {
 
 document.getElementById('btn-home').onclick = () => window.showSection('home');
 
+async function loadSection(sectionId) {
+    if (!loadedSections.has(sectionId)) {
+        const modulePromise = sectionLoaders[sectionId]().catch((error) => {
+            loadedSections.delete(sectionId);
+            throw error;
+        });
+        loadedSections.set(sectionId, modulePromise);
+    }
+
+    return loadedSections.get(sectionId);
+}
+
+async function stopActiveSections() {
+    const modules = await Promise.allSettled([...loadedSections.entries()].map(async ([sectionId, modulePromise]) => {
+        const sectionModule = await modulePromise;
+        const stopName = sectionConfig[sectionId]?.stop;
+        if (stopName && typeof sectionModule[stopName] === 'function') {
+            sectionModule[stopName]();
+        }
+    }));
+
+    modules.forEach((result) => {
+        if (result.status === 'rejected') console.warn('No se pudo detener una sección:', result.reason);
+    });
+}
+
 async function startCamera() {
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.remove('hidden');
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            // Mejora para móviles: usa la resolución disponible
-            video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
+            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         video.srcObject = stream;
         await new Promise(resolve => video.onloadedmetadata = resolve);
-        overlay.classList.add('hidden'); // Solo quitamos carga cuando el video fluye
-    } catch (e) { 
+    } finally {
         overlay.classList.add('hidden');
-        alert("No se detectó cámara o acceso denegado."); 
     }
 }
 

@@ -3,7 +3,7 @@
     --blue-secondary: #244DA1;
     --blue-accent: #2FA4D9;
     --cyan-bright: #3CC3E6;
-    --dark: #000000;
+    --dark: #050816;
     --light: #FFFFFF;
     --glass: rgba(255, 255, 255, 0.08);
     --glass-strong: rgba(255, 255, 255, 0.16);
@@ -119,7 +119,9 @@ body::after {
 }
 
 h1 {
+    margin: 2px 0 0;
     font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 4vw, 3.6rem);
     letter-spacing: 1px;
     margin: 4px 0 0;
     font-size: clamp(2rem, 5vw, 4.1rem);
