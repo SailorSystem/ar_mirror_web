@@ -17,34 +17,55 @@
     </nav>
 
     <section id="sec-home" class="active">
+      <canvas id="mirror-scene" aria-hidden="true"></canvas>
       <div class="hero">
-        <img src="assets//textures/puce.png" alt="PUCE aniversario" class="hero-logo" />
-        <h1>AR Mirror Web</h1>
+        <div class="hero-shell">
+          <span class="hero-eyebrow">Mirror Lab · PUCE</span>
+          <img src="assets//textures/puce.png" alt="PUCE aniversario" class="hero-logo" />
+          <h1>AR Mirror Web</h1>
+          <p class="hero-copy">Experiencias de cámara, gestos y realidad aumentada con una interfaz tipo cristal, profundidad 3D y energía espacial.</p>
+        </div>
+
         <div class="menu-grid">
-          <button class="card card-brand" onclick="window.showSection('yasuni')">
-            🌿 Yasuni (principal)
-          </button>
-          <button class="card" onclick="window.showSection('animals')">
-            🦁 Animales AR
+          <button class="card card-brand" onclick="window.showSection('animals')">
+            <span class="card-icon">🦁</span>
+            <span class="card-kicker">section-ar.js</span>
+            <span class="card-title">Animales AR</span>
+            <span class="card-copy">Revela fauna con tus manos en una capa de niebla interactiva.</span>
           </button>
           <button class="card" onclick="window.showSection('senias')">
-            ✋ Lengua de señas
+            <span class="card-icon">✋</span>
+            <span class="card-kicker">gestos</span>
+            <span class="card-title">Lengua de señas</span>
+            <span class="card-copy">Reconocimiento visual para traducir señales frente al espejo.</span>
           </button>
         </div>
 
         <h2 class="group-title">Suite de Juegos</h2>
         <div class="menu-grid menu-games">
           <button class="card" onclick="window.showSection('game')">
-            🐦 Big Flappy Bird (Flappy Nose)
+            <span class="card-icon">🐦</span>
+            <span class="card-kicker">rostro</span>
+            <span class="card-title">Big Flappy Bird</span>
+            <span class="card-copy">Controla el vuelo con la nariz y esquiva obstáculos.</span>
           </button>
           <button class="card" onclick="window.showSection('airpiano')">
-            🎹 Air Piano
+            <span class="card-icon">🎹</span>
+            <span class="card-kicker">manos</span>
+            <span class="card-title">Air Piano</span>
+            <span class="card-copy">Toca notas suspendidas en el aire con gestos.</span>
           </button>
           <button class="card" onclick="window.showSection('donkeyfitness')">
-            🦍 Donkey Kong Fitness
+            <span class="card-icon">🦍</span>
+            <span class="card-kicker">fitness</span>
+            <span class="card-title">Donkey Kong Fitness</span>
+            <span class="card-copy">Muévete para superar retos físicos en pantalla.</span>
           </button>
           <button class="card" onclick="window.showSection('antigravedad')">
-            🪐 Antigravedad PUCE
+            <span class="card-icon">🪐</span>
+            <span class="card-kicker">espacio</span>
+            <span class="card-title">Antigravedad PUCE</span>
+            <span class="card-copy">Un reto orbital con partículas, movimiento y precisión.</span>
           </button>
         </div>
       </div>
