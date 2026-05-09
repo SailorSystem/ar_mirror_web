@@ -1,12 +1,16 @@
 import { initFlappyGame, stopFlappyGame } from './section-game.js';
-// Importa section-ar si ya lo tienes listo
-import { initSenias, stopSenias } from './section-senias.js'; // Nueva
+import { initAnimalsAR, stopAnimalsAR } from './section-ar.js';
+import { initSenias, stopSenias } from './section-senias.js';
 import { initAirPiano, stopAirPiano } from './section-airpiano.js';
 import { initDonkeyFitness, stopDonkeyFitness } from './section-donkeyfitness.js';
 import { initAntigravedad, stopAntigravedad } from './section-antigravedad.js';
+import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
+
+initHomeScene();
+bindHomeCardEffects();
 
 // IMPORTANTE: Exponer a window para que el HTML lo vea
 window.showSection = async function(sectionId) {
@@ -15,6 +19,7 @@ window.showSection = async function(sectionId) {
     nav.classList.add('hidden');
 
     stopFlappyGame(); // Detener juego si estaba activo
+    stopAnimalsAR();
     stopSenias();
     stopAirPiano();
     stopDonkeyFitness();
@@ -51,9 +56,6 @@ window.showSection = async function(sectionId) {
         if (sectionId === 'antigravedad') {
             document.getElementById('section-title').innerText = "Antigravedad PUCE";
             initAntigravedad();
-        }
-        if (sectionId === 'yasuni') {
-            document.getElementById('section-title').innerText = "Yasuni";
         }
     }
 };
