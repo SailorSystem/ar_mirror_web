@@ -4,9 +4,13 @@ import { initSenias, stopSenias } from './section-senias.js';
 import { initAirPiano, stopAirPiano } from './section-airpiano.js';
 import { initDonkeyFitness, stopDonkeyFitness } from './section-donkeyfitness.js';
 import { initAntigravedad, stopAntigravedad } from './section-antigravedad.js';
+import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
+
+initHomeScene();
+bindHomeCardEffects();
 
 // IMPORTANTE: Exponer a window para que el HTML lo vea
 window.showSection = async function(sectionId) {
