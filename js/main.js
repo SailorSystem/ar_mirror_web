@@ -1,63 +1,32 @@
+import { initFlappyGame, stopFlappyGame } from './section-game.js';
+import { initAnimalsAR, stopAnimalsAR } from './section-ar.js';
+import { initSenias, stopSenias } from './section-senias.js';
+import { initAirPiano, stopAirPiano } from './section-airpiano.js';
+import { initDonkeyFitness, stopDonkeyFitness } from './section-donkeyfitness.js';
+import { initAntigravedad, stopAntigravedad } from './section-antigravedad.js';
 import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
 const sectionTitle = document.getElementById('section-title');
 
-const sectionLoaders = {
-    animals: () => import('./section-ar.js'),
-    senias: () => import('./section-senias.js'),
-    game: () => import('./section-game.js'),
-    airpiano: () => import('./section-airpiano.js'),
-    donkeyfitness: () => import('./section-donkeyfitness.js'),
-    antigravedad: () => import('./section-antigravedad.js'),
-};
-
-const loadedSections = new Map();
-
-const sectionConfig = {
-    animals: {
-        title: 'Animales AR',
-        init: 'initAnimalsAR',
-        stop: 'stopAnimalsAR',
-    },
-    senias: {
-        title: 'Traductor de Señas',
-        init: 'initSenias',
-        stop: 'stopSenias',
-    },
-    game: {
-        title: 'Flappy Nose',
-        init: 'initFlappyGame',
-        stop: 'stopFlappyGame',
-    },
-    airpiano: {
-        title: 'Air Piano',
-        init: 'initAirPiano',
-        stop: 'stopAirPiano',
-    },
-    donkeyfitness: {
-        title: 'Donkey Kong Fitness',
-        init: 'initDonkeyFitness',
-        stop: 'stopDonkeyFitness',
-    },
-    antigravedad: {
-        title: 'Antigravedad PUCE',
-        init: 'initAntigravedad',
-        stop: 'stopAntigravedad',
-    },
-};
-
 initHomeScene();
 bindHomeCardEffects();
 
-// IMPORTANTE: Exponer a window para que el HTML lo vea aunque algún módulo de IA falle al cargar.
+// IMPORTANTE: Exponer a window para que el HTML lo vea
 window.showSection = async function(sectionId) {
     await stopActiveSections();
 
     document.getElementById('sec-home').classList.add('hidden');
     document.getElementById('sec-app').classList.add('hidden');
     nav.classList.add('hidden');
+
+    stopFlappyGame(); // Detener juego si estaba activo
+    stopAnimalsAR();
+    stopSenias();
+    stopAirPiano();
+    stopDonkeyFitness();
+    stopAntigravedad();
 
     if (sectionId === 'home') {
         document.getElementById('sec-home').classList.remove('hidden');
@@ -77,12 +46,31 @@ window.showSection = async function(sectionId) {
 
     try {
         await startCamera();
-        const sectionModule = await loadSection(sectionId);
-        await sectionModule[config.init]();
-    } catch (error) {
-        console.error(`No se pudo iniciar la sección ${sectionId}:`, error);
-        alert('No se pudo iniciar esta experiencia. Revisa la cámara o la conexión de los modelos.');
-        window.showSection('home');
+        
+        if (sectionId === 'game') {
+            document.getElementById('section-title').innerText = "Flappy Nose";
+            initFlappyGame();
+        }
+        if (sectionId === 'animals') {
+            document.getElementById('section-title').innerText = "Animales AR";
+            initAnimalsAR();
+        }
+        if (sectionId === 'senias') {
+            document.getElementById('section-title').innerText = "Traductor de Señas";
+            initSenias();
+        }
+        if (sectionId === 'airpiano') {
+            document.getElementById('section-title').innerText = "Air Piano";
+            initAirPiano();
+        }
+        if (sectionId === 'donkeyfitness') {
+            document.getElementById('section-title').innerText = "Donkey Kong Fitness";
+            initDonkeyFitness();
+        }
+        if (sectionId === 'antigravedad') {
+            document.getElementById('section-title').innerText = "Antigravedad PUCE";
+            initAntigravedad();
+        }
     }
 };
 
