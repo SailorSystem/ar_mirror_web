@@ -28,7 +28,10 @@
 
         <div class="menu-grid">
           <button class="card card-brand" onclick="window.showSection('animals')">
-            🦁 Animales AR
+            <span class="card-icon">🦁</span>
+            <span class="card-kicker">naturaleza</span>
+            <span class="card-title">Animales AR</span>
+            <span class="card-copy">Revela la fauna del Yasuní moviendo tus manos frente a la cámara.</span>
           </button>
           <button class="card" onclick="window.showSection('senias')">
             <span class="card-icon">✋</span>
@@ -76,7 +79,6 @@
         </div>
         <video id="webcam" autoplay playsinline></video>
         <canvas id="output_canvas"></canvas>
-        <!-- Dentro de <div class="canvas-container"> en index.html[cite: 12] -->
         <div id="game-over-screen" class="hidden">
           <div class="menu-box">
             <h2>¡Puntuación Final!</h2>

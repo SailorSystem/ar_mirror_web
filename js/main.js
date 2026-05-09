@@ -10,23 +10,24 @@ const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
 const sectionTitle = document.getElementById('section-title');
 
+const sectionConfig = {
+    game:         { title: 'Flappy Nose',           init: initFlappyGame,     stop: stopFlappyGame },
+    animals:      { title: 'Animales AR',           init: initAnimalsAR,      stop: stopAnimalsAR },
+    senias:       { title: 'Traductor de Señas',    init: initSenias,         stop: stopSenias },
+    airpiano:     { title: 'Air Piano',             init: initAirPiano,       stop: stopAirPiano },
+    donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
+    antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },
+};
+
 initHomeScene();
 bindHomeCardEffects();
 
-// IMPORTANTE: Exponer a window para que el HTML lo vea
 window.showSection = async function(sectionId) {
-    await stopActiveSections();
+    Object.values(sectionConfig).forEach(s => s.stop());
 
     document.getElementById('sec-home').classList.add('hidden');
     document.getElementById('sec-app').classList.add('hidden');
     nav.classList.add('hidden');
-
-    stopFlappyGame(); // Detener juego si estaba activo
-    stopAnimalsAR();
-    stopSenias();
-    stopAirPiano();
-    stopDonkeyFitness();
-    stopAntigravedad();
 
     if (sectionId === 'home') {
         document.getElementById('sec-home').classList.remove('hidden');
@@ -46,61 +47,14 @@ window.showSection = async function(sectionId) {
 
     try {
         await startCamera();
-        
-        if (sectionId === 'game') {
-            document.getElementById('section-title').innerText = "Flappy Nose";
-            initFlappyGame();
-        }
-        if (sectionId === 'animals') {
-            document.getElementById('section-title').innerText = "Animales AR";
-            initAnimalsAR();
-        }
-        if (sectionId === 'senias') {
-            document.getElementById('section-title').innerText = "Traductor de Señas";
-            initSenias();
-        }
-        if (sectionId === 'airpiano') {
-            document.getElementById('section-title').innerText = "Air Piano";
-            initAirPiano();
-        }
-        if (sectionId === 'donkeyfitness') {
-            document.getElementById('section-title').innerText = "Donkey Kong Fitness";
-            initDonkeyFitness();
-        }
-        if (sectionId === 'antigravedad') {
-            document.getElementById('section-title').innerText = "Antigravedad PUCE";
-            initAntigravedad();
-        }
+        await config.init();
+    } catch (err) {
+        console.error('Error al iniciar sección:', err);
+        window.showSection('home');
     }
 };
 
 document.getElementById('btn-home').onclick = () => window.showSection('home');
-
-async function loadSection(sectionId) {
-    if (!loadedSections.has(sectionId)) {
-        const modulePromise = sectionLoaders[sectionId]().catch((error) => {
-            loadedSections.delete(sectionId);
-            throw error;
-        });
-        loadedSections.set(sectionId, modulePromise);
-    }
-
-    return loadedSections.get(sectionId);
-}
-
-async function stopActiveSections() {
-    const modules = await Promise.allSettled([...loadedSections.entries()].map(async ([sectionId, modulePromise]) => {
-        const sectionModule = await modulePromise;
-        const stopName = sectionConfig[sectionId]?.stop;
-        if (stopName && typeof sectionModule[stopName] === 'function') {
-            sectionModule[stopName]();
-        }
-    }));
-
-    modules.forEach((result) => {
-        if (result.status === 'rejected') console.warn('No se pudo detener una sección:', result.reason);
-    });
-}
 
 async function startCamera() {
     const overlay = document.getElementById('loading-overlay');

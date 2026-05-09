@@ -119,12 +119,10 @@ body::after {
 }
 
 h1 {
-    margin: 2px 0 0;
-    font-family: 'Cinzel', serif;
-    font-size: clamp(2rem, 4vw, 3.6rem);
-    letter-spacing: 1px;
     margin: 4px 0 0;
+    font-family: 'Cinzel', serif;
     font-size: clamp(2rem, 5vw, 4.1rem);
+    letter-spacing: 1px;
     text-shadow: 0 12px 34px rgba(60,195,230,.22);
 }
 
@@ -314,11 +312,12 @@ nav {
     top: 12px;
     left: 50%;
     width: min(1120px, calc(100% - 24px));
-    height: 60px;
+    min-height: 60px;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 0 18px;
     z-index: 100;
     border: 1px solid rgba(255,255,255,.14);
@@ -326,6 +325,18 @@ nav {
     background: rgba(8, 16, 38, 0.66);
     box-shadow: 0 18px 42px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.15);
     backdrop-filter: blur(16px) saturate(140%);
+}
+
+@media (max-width: 600px) {
+    nav {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 10px 14px;
+        top: 8px;
+        border-radius: 14px;
+    }
+    .nav-logo { height: 28px; }
+    #section-title { font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
 }
 
 .nav-logo {
@@ -377,24 +388,57 @@ nav {
     transform: translate(-50%, -50%);
     z-index: 200;
     padding: 2rem;
-    border: 2px solid var(--blue-accent);
+    border: 1px solid var(--blue-accent);
     border-radius: 18px;
-    background: rgba(5,18,51,0.86);
+    background: rgba(5,18,51,0.88);
     text-align: center;
-    box-shadow: 0 24px 70px rgba(0,0,0,.36);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 24px 70px rgba(0,0,0,.36), 0 0 40px rgba(47,164,217,.12);
+    backdrop-filter: blur(16px) saturate(140%);
+    min-width: 280px;
+    max-width: min(420px, 90vw);
+}
+
+.menu-box h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    color: var(--cyan-bright);
+}
+
+#final-score {
+    font-size: 3.2rem;
+    margin: 8px 0 16px;
+    font-family: 'Cinzel', serif;
+    color: var(--light);
+    text-shadow: 0 0 30px rgba(60,195,230,.3);
 }
 
 .menu-box button {
     display: block;
     width: 100%;
     margin: 10px 0;
-    padding: 10px;
-    background: var(--blue-accent);
-    border: none;
-    border-radius: 7px;
+    padding: 12px 10px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 12px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 700;
+    font-size: .95rem;
+    font-family: 'Inter', sans-serif;
+    color: var(--light);
+    background: linear-gradient(135deg, rgba(47,164,217,.4), rgba(31,63,139,.5));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 4px 16px rgba(0,0,0,.3);
+    backdrop-filter: blur(8px);
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.menu-box button:hover {
+    background: linear-gradient(135deg, rgba(47,164,217,.6), rgba(31,63,139,.7));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 6px 24px rgba(47,164,217,.2);
+    transform: translateY(-2px);
+}
+
+.menu-box button:active {
+    transform: translateY(0) scale(.98);
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -412,6 +456,30 @@ nav {
     .hero-shell { border-radius: 24px; }
     .menu-grid { grid-template-columns: 1fr; width: min(520px, 94vw); }
     .card { min-height: 150px; }
+}
+
+@media (max-width: 480px) {
+    body { overflow-y: auto; }
+    #sec-home { overflow: visible; }
+    .hero { justify-content: flex-start; padding-top: 16px; gap: 6px; }
+    .hero-shell { border-radius: 16px; padding: 14px; }
+    .hero-eyebrow { font-size: .6rem; }
+    .hero-logo { width: min(260px, 80vw); }
+    h1 { font-size: clamp(1.4rem, 6vw, 2rem); }
+    .hero-copy { font-size: .82rem; }
+    .card { min-height: 120px; padding: 14px; gap: 5px; border-radius: 18px; }
+    .card-brand { min-height: 140px; }
+    .card-icon { width: 34px; height: 34px; font-size: 1.1rem; top: 10px; left: 12px; border-radius: 12px; }
+    .card-title { font-size: .88rem; }
+    .card-kicker { font-size: .6rem; }
+    .card-copy { font-size: .78rem; }
+    .group-title { font-size: .8rem; letter-spacing: 1px; }
+    .menu-grid { gap: 10px; padding: 10px 0; }
+    .menu-box h2 { font-size: .95rem; }
+    #final-score { font-size: 2.4rem; }
+    .menu-box button { padding: 10px 8px; font-size: .85rem; }
+    #game-over-screen { padding: 1.2rem; min-width: auto; }
+    #loading-overlay p { font-size: .85rem; padding: 0 16px; text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
