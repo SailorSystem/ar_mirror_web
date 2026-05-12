@@ -1,415 +1,695 @@
-/**
- * section-ar.js — Niebla del Yasuní
- *
- * El usuario mueve las manos frente a la cámara para "limpiar" una capa
- * de niebla digital y revelar fotos reales de la fauna del Yasuní debajo.
- *
- * Arquitectura de capas (orden de dibujado):
- *   1. <video>          — feed de cámara (CSS espejo ya aplicado)
- *   2. canvas "foto"    — foto del Yasuní, siempre visible debajo
- *   3. canvas "niebla"  — capa de niebla con agujeros donde pasaron las manos
- *   4. canvas "output"  — landmarks de manos + UI (el canvas existente del index.html)
- *
- * Usamos dos canvas extra (ocultos en el DOM) para separar las capas.
- * El canvas "niebla" usa destination-out para "borrar" píxeles con el movimiento.
- */
+import { HandLandmarker, FilesetResolver, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
-import {
-    HandLandmarker,
-    FilesetResolver,
-    DrawingUtils,
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+// ─── Estados de la máquina ────────────────────────────────────────────────────
+const S_FOG = 0;
+const S_CLEARING = 1;
+const S_REVEALED = 2;
+const S_REGENERATING = 3;
 
-// ─── Estado ───────────────────────────────────────────────────────────────────
-let handLandmarker = null;
-let running        = false;
-let animFrameId    = null;
-
-// Canvas de capas extra
-let fogCanvas    = null;   // niebla
-let fogCtx       = null;
-let photoCanvas  = null;   // foto debajo
-let photoCtx     = null;
-
-// Foto actual y lista
-let currentPhotoIndex = 0;
-let photoImages       = [];   // HTMLImageElement[]
-let photoLoaded       = false;
-
-// Historial de posiciones para trail suave
-const MAX_TRAIL = 6;
-let handTrails = { Left: [], Right: [] };   // últimas N posiciones por mano
-
-// Progreso de revelación
-let revealedPixels = 0;   // % aproximado (0–100)
-let photoShownAt   = 0;   // timestamp de cuando se completó la revelación
-
-// ─── Fotos del Yasuní ─────────────────────────────────────────────────────────
-// Rutas relativas — coloca tus fotos en assets/yasuni/
-const YASUNI_PHOTOS = [
-    { src: "assets/yasuni/jaguar.jpg",    label: "Jaguar  (Panthera onca)" },
-    { src: "assets/yasuni/anaconda.jpg",  label: "Anaconda  (Eunectes murinus)" },
-    { src: "assets/yasuni/mono.jpg",      label: "Mono capuchino  (Cebus albifrons)" },
-    { src: "assets/yasuni/buho.jpg",      label: "Búho moteado  (Ciccaba virgata)" },
-    { src: "assets/yasuni/delfin.jpg",    label: "Delfín rosado  (Inia geoffrensis)" },
+// ─── Animales del Yasuní ──────────────────────────────────────────────────────
+const ANIMALS = [
+  { file: "elephant.png", name: "Elefante",       emoji: "🐘", fact: "Pueden reconocerse en un espejo, como los delfines y los humanos." },
+  { file: "giraffe.png",  name: "Jirafa",         emoji: "🦒", fact: "Su cuello mide hasta 2.4 m, pero solo tiene 7 vértebras, igual que nosotros." },
+  { file: "hippo.png",    name: "Hipopótamo",     emoji: "🦛", fact: "Pasa hasta 16 horas al día en el agua para proteger su piel del sol." },
+  { file: "monkey.png",   name: "Mono Capuchino", emoji: "🐒", fact: "Son tan inteligentes que usan piedras como martillos para romper nueces." },
+  { file: "panda.png",    name: "Panda Gigante",  emoji: "🐼", fact: "Come entre 12 y 38 kg de bambú al día, ¡hasta 14 horas comiendo!" },
+  { file: "parrot.png",   name: "Loro",           emoji: "🦜", fact: "Algunas especies viven más de 80 años y aprenden cientos de palabras." },
+  { file: "penguin.png",  name: "Pingüino",       emoji: "🐧", fact: "El pingüino emperador aguanta hasta 20 minutos bajo el agua." },
+  { file: "pig.png",      name: "Cerdo",          emoji: "🐷", fact: "Son más inteligentes que los perros en pruebas de resolución de problemas." },
+  { file: "rabbit.png",   name: "Conejo",         emoji: "🐰", fact: "Sus orejas giran 270 grados para detectar depredadores desde lejos." },
+  { file: "snake.png",    name: "Serpiente",      emoji: "🐍", fact: "Algunas especies pueden pasar meses sin comer después de una gran presa." },
 ];
 
-// Radio del "borrador" en px — más grande = se revela más rápido
-const BRUSH_RADIUS    = 90;
-// Cuánto % de revelación activa la transición a la siguiente foto
-const REVEAL_THRESHOLD = 88;
-// Segundos mostrando la foto completa antes de pasar a la siguiente
-const PHOTO_SHOW_SECS  = 3.5;
+// ─── Estado global ────────────────────────────────────────────────────────────
+let handLandmarker = null;
+let running = false;
+let animFrameId = null;
 
-// ─── Inicialización ───────────────────────────────────────────────────────────
+let canvasWidth = 1280;
+let canvasHeight = 720;
+
+// Canvases
+let fogCanvas = null;
+let fogCtx = null;
+let photoCanvas = null;
+let photoCtx = null;
+
+// Fotos precargadas
+let photoImages = [];
+
+// Máquina de estados
+let state = S_FOG;
+let currentIdx = -1;
+let prevIndices = [];
+
+// Regeneración de niebla
+let fogBuffer = null;
+let regenStart = 0;
+
+// Pop-in del animal
+let revealTs = 0;
+
+// Progreso de revelado
+let revealedPixels = 0;
+const REVEAL_THRESHOLD = 70;
+const BRUSH_RADIUS = 90;
+
+// Trail de manos
+const MAX_TRAIL = 6;
+let handTrails = { Left: [], Right: [] };
+
+// Detección de mano quieta
+let handPresent = false;
+let handStill = false;
+let handStillSince = 0;
+let prevPalmPositions = [];
+
+// Mensaje de estado flotante
+let statusMsg = "";
+let statusMsgTs = 0;
+const SHOW_MSG_MS = 3500;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 export async function initAnimalsAR() {
-    // 1. Cargar MediaPipe HandLandmarker
-    const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-    );
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-            modelAssetPath: "public/models/hand_landmarker.task",
-            delegate: "GPU",
-        },
-        runningMode: "VIDEO",
-        numHands: 2,
-    });
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+  );
+  handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "GPU" },
+    runningMode: "VIDEO",
+    numHands: 2,
+  });
 
-    // 2. Crear canvas extra e inyectarlos en el contenedor
-    const container = document.querySelector(".canvas-container");
-    const outputCanvas = document.getElementById("output_canvas");
+  const container = document.querySelector(".canvas-container");
+  const outputCanvas = document.getElementById("output_canvas");
 
-    // Canvas de foto (debajo del output)
-    photoCanvas = _createLayerCanvas("yasuni-photo-layer");
-    photoCtx    = photoCanvas.getContext("2d");
-    container.insertBefore(photoCanvas, outputCanvas);
+  photoCanvas = _createLayerCanvas("yasuni-photo-layer");
+  photoCtx = photoCanvas.getContext("2d");
+  container.insertBefore(photoCanvas, outputCanvas);
 
-    // Canvas de niebla (entre foto y output)
-    fogCanvas = _createLayerCanvas("yasuni-fog-layer");
-    fogCtx    = fogCanvas.getContext("2d");
-    container.insertBefore(fogCanvas, outputCanvas);
+  fogCanvas = _createLayerCanvas("yasuni-fog-layer");
+  fogCtx = fogCanvas.getContext("2d");
+  container.insertBefore(fogCanvas, outputCanvas);
 
-    // 3. Precargar fotos
-    await _preloadPhotos();
+  await _preloadPhotos();
 
-    // 4. Arrancar
-    running = true;
-    _loadPhoto(currentPhotoIndex);
-    render();
+  running = true;
+  _enterFog();
+  render();
 }
 
 function _createLayerCanvas(id) {
-    const c = document.createElement("canvas");
-    c.id    = id;
-    // Mismos estilos que el canvas existente
-    Object.assign(c.style, {
-        position:   "absolute",
-        width:      "100%",
-        height:     "100%",
-        objectFit:  "cover",
-        transform:  "scaleX(-1)",
-        top:        "0",
-        left:       "0",
-    });
-    return c;
+  const c = document.createElement("canvas");
+  c.id = id;
+  Object.assign(c.style, {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transform: "scaleX(-1)",
+    top: "0",
+    left: "0",
+  });
+  return c;
 }
 
 async function _preloadPhotos() {
-    const promises = YASUNI_PHOTOS.map(
-        (p) =>
-            new Promise((res) => {
-                const img = new Image();
-                img.onload  = () => res(img);
-                img.onerror = () => res(null);   // foto faltante → null
-                img.src = p.src;
-            })
-    );
-    photoImages = await Promise.all(promises);
+  const promises = ANIMALS.map(
+    (a) =>
+      new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = () => res(null);
+        img.src = `assets/yasuni/${a.file}`;
+      })
+  );
+  photoImages = await Promise.all(promises);
 }
 
-// ─── Gestión de fotos ─────────────────────────────────────────────────────────
-function _loadPhoto(index) {
-    photoLoaded   = false;
-    revealedPixels = 0;
-    photoShownAt  = 0;
-    handTrails    = { Left: [], Right: [] };
-
-    // Sincronizar tamaño de canvas con el video
-    const video = document.getElementById("webcam");
-    const W = video.videoWidth  || 1280;
-    const H = video.videoHeight || 720;
-
-    photoCanvas.width  = W;
-    photoCanvas.height = H;
-    fogCanvas.width    = W;
-    fogCanvas.height   = H;
-
-    // Dibujar foto (o placeholder si no cargó)
-    photoCtx.clearRect(0, 0, W, H);
-    const img = photoImages[index];
-    if (img) {
-        // Ajuste cover
-        const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-        const dw    = img.naturalWidth  * scale;
-        const dh    = img.naturalHeight * scale;
-        const dx    = (W - dw) / 2;
-        const dy    = (H - dh) / 2;
-        photoCtx.drawImage(img, dx, dy, dw, dh);
-
-        // Label de la especie en la esquina
-        _drawPhotoLabel(YASUNI_PHOTOS[index].label, W, H);
-    } else {
-        // Placeholder si la foto no existe todavía
-        photoCtx.fillStyle = "#0f2417";
-        photoCtx.fillRect(0, 0, W, H);
-        photoCtx.fillStyle = "#00ff88";
-        photoCtx.font      = "bold 28px monospace";
-        photoCtx.textAlign = "center";
-        photoCtx.fillText(YASUNI_PHOTOS[index].label, W / 2, H / 2);
-        photoCtx.fillText("(foto no encontrada)", W / 2, H / 2 + 40);
-    }
-
-    // Rellenar niebla — efecto de "selva digital" con gradiente y ruido
-    _drawFog(W, H);
-
-    photoLoaded = true;
+function _resizeCanvases(W, H) {
+  if (fogCanvas.width !== W) fogCanvas.width = W;
+  if (fogCanvas.height !== H) fogCanvas.height = H;
+  if (photoCanvas.width !== W) photoCanvas.width = W;
+  if (photoCanvas.height !== H) photoCanvas.height = H;
+  canvasWidth = W;
+  canvasHeight = H;
 }
 
-function _drawPhotoLabel(text, W, H) {
-    const pad  = 18;
-    const fh   = 32;
-    photoCtx.font      = `bold ${fh}px 'Segoe UI', sans-serif`;
-    const tw   = photoCtx.measureText(text).width;
-    const bx   = W - tw - pad * 2 - 24;
-    const by   = H - fh - pad * 2 - 16;
-    const bw   = tw + pad * 2;
-    const bh   = fh + pad;
-
-    photoCtx.fillStyle = "rgba(0,0,0,0.55)";
-    _roundRect(photoCtx, bx, by, bw, bh, 10);
-    photoCtx.fill();
-
-    photoCtx.fillStyle   = "#00ff88";
-    photoCtx.textAlign   = "left";
-    photoCtx.textBaseline = "middle";
-    photoCtx.fillText(text, bx + pad, by + bh / 2);
+// ─── Selección aleatoria (evita repetir los últimos 3) ────────────────────────
+function _pickNext() {
+  let pool = ANIMALS.map((_, i) => i).filter((i) => !prevIndices.includes(i));
+  if (pool.length === 0) {
+    prevIndices = [];
+    pool = ANIMALS.map((_, i) => i);
+  }
+  const idx = pool[Math.floor(Math.random() * pool.length)];
+  prevIndices.push(idx);
+  if (prevIndices.length > 3) prevIndices.shift();
+  currentIdx = idx;
 }
 
-function _drawFog(W, H) {
-    fogCtx.clearRect(0, 0, W, H);
+// ─── Transiciones ─────────────────────────────────────────────────────────────
+function _enterFog() {
+  state = S_FOG;
+  revealedPixels = 0;
+  handTrails = { Left: [], Right: [] };
+  prevPalmPositions = [];
+  handStill = false;
+  handStillSince = 0;
+  _setStatus("");
 
-    // Base — verde oscuro selva
-    const grad = fogCtx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
-    grad.addColorStop(0,   "rgba(8,  30, 15, 0.92)");
-    grad.addColorStop(0.6, "rgba(4,  18, 10, 0.97)");
-    grad.addColorStop(1,   "rgba(0,   8,  4, 1.00)");
-    fogCtx.fillStyle = grad;
-    fogCtx.fillRect(0, 0, W, H);
+  const W = canvasWidth;
+  const H = canvasHeight;
 
-    // Partículas de niebla — círculos semitransparentes de distintos tamaños
-    for (let i = 0; i < 120; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const r = 20 + Math.random() * 80;
-        const a = 0.04 + Math.random() * 0.08;
-        const g2 = fogCtx.createRadialGradient(x, y, 0, x, y, r);
-        g2.addColorStop(0, `rgba(30, 80, 40, ${a})`);
-        g2.addColorStop(1, "rgba(0,0,0,0)");
-        fogCtx.fillStyle = g2;
-        fogCtx.beginPath();
-        fogCtx.arc(x, y, r, 0, Math.PI * 2);
-        fogCtx.fill();
-    }
+  // Photo canvas: dark background
+  photoCtx.fillStyle = "#050a10";
+  photoCtx.fillRect(0, 0, W, H);
 
-    // Texto de instrucción centrado
-    fogCtx.save();
-    fogCtx.font      = "bold 22px 'Segoe UI', sans-serif";
-    fogCtx.textAlign = "center";
-    fogCtx.fillStyle = "rgba(0, 255, 136, 0.7)";
-    fogCtx.fillText("✋  Mueve tus manos para revelar la fauna del Yasuní", W / 2, H - 50);
-    fogCtx.restore();
+  // Render full fog to buffer for later regeneration
+  _renderFogBuffer(W, H);
+
+  // Draw full fog on fog canvas
+  fogCtx.clearRect(0, 0, W, H);
+  fogCtx.drawImage(fogBuffer, 0, 0);
+}
+
+function _enterClearing() {
+  state = S_CLEARING;
+  _setStatus("");
+}
+
+function _enterRevealed() {
+  state = S_REVEALED;
+  revealTs = performance.now();
+
+  const W = canvasWidth;
+  const H = canvasHeight;
+  const img = photoImages[currentIdx];
+
+  // Draw animal photo on photo canvas
+  photoCtx.clearRect(0, 0, W, H);
+  if (img) {
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const dw = img.naturalWidth * scale;
+    const dh = img.naturalHeight * scale;
+    photoCtx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  } else {
+    photoCtx.fillStyle = "#1a3a2a";
+    photoCtx.fillRect(0, 0, W, H);
+    photoCtx.fillStyle = "#00ff88";
+    photoCtx.font = "bold 28px monospace";
+    photoCtx.textAlign = "center";
+    photoCtx.fillText(ANIMALS[currentIdx].name, W / 2, H / 2);
+  }
+}
+
+function _enterRegenerating() {
+  state = S_REGENERATING;
+  regenStart = performance.now();
+  _setStatus("🌀  Niebla regenerándose...");
+}
+
+// ─── Prerender de niebla (para regeneración) ─────────────────────────────────
+function _renderFogBuffer(W, H) {
+  if (!fogBuffer || fogBuffer.width !== W || fogBuffer.height !== H) {
+    fogBuffer = document.createElement("canvas");
+    fogBuffer.width = W;
+    fogBuffer.height = H;
+  }
+  const bCtx = fogBuffer.getContext("2d");
+  bCtx.clearRect(0, 0, W, H);
+
+  const grad = bCtx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+  grad.addColorStop(0, "rgba(8, 30, 15, 0.92)");
+  grad.addColorStop(0.6, "rgba(4, 18, 10, 0.97)");
+  grad.addColorStop(1, "rgba(0, 8, 4, 1.00)");
+  bCtx.fillStyle = grad;
+  bCtx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 120; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = 20 + Math.random() * 80;
+    const a = 0.04 + Math.random() * 0.08;
+    const g2 = bCtx.createRadialGradient(x, y, 0, x, y, r);
+    g2.addColorStop(0, `rgba(30, 80, 40, ${a})`);
+    g2.addColorStop(1, "rgba(0,0,0,0)");
+    bCtx.fillStyle = g2;
+    bCtx.beginPath();
+    bCtx.arc(x, y, r, 0, Math.PI * 2);
+    bCtx.fill();
+  }
 }
 
 // ─── Render loop ──────────────────────────────────────────────────────────────
 function render() {
-    if (!running) return;
-    animFrameId = requestAnimationFrame(render);
+  if (!running) return;
+  animFrameId = requestAnimationFrame(render);
 
-    if (!photoLoaded) return;
+  const video = document.getElementById("webcam");
+  if (video.readyState < 4) return;
 
-    const video  = document.getElementById("webcam");
-    if (video.readyState < 4) return;
+  const canvas = document.getElementById("output_canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const W = canvas.width;
+  const H = canvas.height;
 
-    const canvas = document.getElementById("output_canvas");
-    const ctx    = canvas.getContext("2d");
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const W = canvas.width;
-    const H = canvas.height;
+  _resizeCanvases(W, H);
 
-    // Detectar manos
-    const results = handLandmarker.detectForVideo(video, performance.now());
-    ctx.clearRect(0, 0, W, H);
+  // Detectar manos
+  const results = handLandmarker.detectForVideo(video, performance.now());
+  ctx.clearRect(0, 0, W, H);
 
-    if (results.landmarks && results.landmarks.length > 0) {
-        const drawUtils = new DrawingUtils(ctx);
+  const hands = _processHands(results, W, H);
 
-        results.landmarks.forEach((lm, idx) => {
-            const handLabel = results.handedness?.[idx]?.[0]?.categoryName ?? "Left";
+  // Determinar presencia y movimiento de mano
+  _updateHandState(hands);
 
-            // Punto de la palma — promedio de muñeca (0) y base del dedo medio (9)
-            const px = ((lm[0].x + lm[9].x) / 2) * W;
-            const py = ((lm[0].y + lm[9].y) / 2) * H;
+  // Máquina de estados
+  _updateState(hands, W, H);
 
-            // Guardar en trail
-            const trail = handTrails[handLabel] ?? (handTrails[handLabel] = []);
-            trail.push({ x: px, y: py });
-            if (trail.length > MAX_TRAIL) trail.shift();
-
-            // Borrar niebla a lo largo del trail
-            _eraseAlongTrail(trail, W, H);
-
-            // Dibujar contorno sutil de la mano en el canvas output
-            drawUtils.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, {
-                color: "rgba(0,255,136,0.35)",
-                lineWidth: 2,
-            });
-            drawUtils.drawLandmarks(lm, {
-                color:     "rgba(0,255,136,0.6)",
-                lineWidth: 1,
-                radius:    3,
-            });
-
-            // Círculo visual donde borra
-            ctx.beginPath();
-            ctx.arc(px, py, BRUSH_RADIUS * 0.5, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(0,255,136,0.5)";
-            ctx.lineWidth   = 2;
-            ctx.stroke();
-        });
-    }
-
-    // Estimar revelación y manejar transición
-    _checkRevealProgress(W, H);
-
-    // Dibujar HUD
-    _drawHUD(ctx, W, H);
+  // Dibujar según estado
+  _drawState(ctx, W, H, hands);
 }
 
-function _eraseAlongTrail(trail, W, H) {
-    if (trail.length === 0) return;
+function _processHands(results, W, H) {
+  const hands = [];
+  if (results.landmarks && results.landmarks.length > 0) {
+    results.landmarks.forEach((lm, idx) => {
+      const handLabel = results.handedness?.[idx]?.[0]?.categoryName ?? "Left";
+      const px = ((lm[0].x + lm[9].x) / 2) * W;
+      const py = ((lm[0].y + lm[9].y) / 2) * H;
 
-    fogCtx.globalCompositeOperation = "destination-out";
+      const trail = handTrails[handLabel] ?? (handTrails[handLabel] = []);
+      trail.push({ x: px, y: py });
+      if (trail.length > MAX_TRAIL) trail.shift();
 
-    for (let i = 0; i < trail.length; i++) {
-        const alpha = (i + 1) / trail.length;  // más opaco al final del trail
-        const r     = BRUSH_RADIUS * (0.6 + alpha * 0.4);
-
-        const grad = fogCtx.createRadialGradient(
-            trail[i].x, trail[i].y, 0,
-            trail[i].x, trail[i].y, r
-        );
-        grad.addColorStop(0,   `rgba(0,0,0,${alpha})`);
-        grad.addColorStop(0.7, `rgba(0,0,0,${alpha * 0.6})`);
-        grad.addColorStop(1,   "rgba(0,0,0,0)");
-
-        fogCtx.fillStyle = grad;
-        fogCtx.beginPath();
-        fogCtx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
-        fogCtx.fill();
-    }
-
-    fogCtx.globalCompositeOperation = "source-over";
+      hands.push({ lm, px, py, label: handLabel });
+    });
+  }
+  return hands;
 }
 
-function _checkRevealProgress(W, H) {
-    const now = performance.now() / 1000;
+function _updateHandState(hands) {
+  handPresent = hands.length > 0;
 
-    // Samplear píxeles del fogCanvas cada 30 frames aprox.
-    if (Math.floor(now * 10) % 3 === 0) {
-        try {
-            const sample = fogCtx.getImageData(0, 0, W, H);
-            const data   = sample.data;
-            let transparent = 0;
-            // Contar píxeles con alpha < 30 (revelados)
-            for (let i = 3; i < data.length; i += 4 * 8) {   // cada 8 px para velocidad
-                if (data[i] < 30) transparent++;
-            }
-            const total    = data.length / (4 * 8);
-            revealedPixels = Math.round((transparent / total) * 100);
-        } catch (_) { /* tainted canvas en algunos navegadores */ }
-    }
+  if (!handPresent) {
+    handStill = false;
+    handStillSince = 0;
+    prevPalmPositions = [];
+    return;
+  }
 
-    // Umbral alcanzado — esperar PHOTO_SHOW_SECS y pasar a la siguiente
-    if (revealedPixels >= REVEAL_THRESHOLD) {
-        if (photoShownAt === 0) photoShownAt = now;
-        if (now - photoShownAt >= PHOTO_SHOW_SECS) {
-            currentPhotoIndex = (currentPhotoIndex + 1) % YASUNI_PHOTOS.length;
-            _loadPhoto(currentPhotoIndex);
+  // Track palm positions for stillness detection
+  const palm = hands[0];
+  prevPalmPositions.push({ x: palm.px, y: palm.py });
+  if (prevPalmPositions.length > 10) prevPalmPositions.shift();
+
+  if (prevPalmPositions.length < 5) {
+    handStill = false;
+    return;
+  }
+
+  // Compute average movement in last frames
+  const avg = prevPalmPositions.reduce((a, p) => ({ x: a.x + p.x, y: a.y + p.y }), { x: 0, y: 0 });
+  avg.x /= prevPalmPositions.length;
+  avg.y /= prevPalmPositions.length;
+
+  const dist = Math.hypot(palm.px - avg.x, palm.py - avg.y);
+  const wasStill = handStill;
+  handStill = dist < 12;
+
+  if (handStill && !wasStill) handStillSince = performance.now();
+  if (!handStill) handStillSince = 0;
+}
+
+function _updateState(hands, W, H) {
+  const now = performance.now();
+
+  switch (state) {
+    case S_FOG: {
+      if (!handPresent) {
+        _setStatusMsg("✋  Acerca tu mano a la cámara");
+        break;
+      }
+      if (handStill) {
+        const elapsed = now - handStillSince;
+        if (elapsed > 3000) {
+          _setStatusMsg("✋  ¡Mueve tu mano! Barre la niebla para descubrir animales");
         }
+        break;
+      }
+      // Hand is moving → start clearing
+      _enterClearing();
+      break;
     }
+
+    case S_CLEARING: {
+      if (!handPresent) {
+        // Hand left during clearing → reset to FOG
+        _setStatusMsg("🔄  Vuelve a acercar tu mano para continuar");
+        _enterFog();
+        break;
+      }
+
+      // Erase fog along trail
+      hands.forEach((h) => {
+        const trail = handTrails[h.label] || [];
+        _eraseAlongTrail(trail, W, H);
+      });
+
+      // Sample reveal progress
+      _sampleReveal(W, H);
+
+      if (revealedPixels >= REVEAL_THRESHOLD) {
+        _enterRevealed();
+      }
+      break;
+    }
+
+    case S_REVEALED: {
+      if (!handPresent) {
+        // Hand removed → regenerate fog
+        _enterRegenerating();
+        break;
+      }
+      if (handStill) {
+        const elapsed = now - handStillSince;
+        if (elapsed > 3000) {
+          _setStatusMsg("🙌  Retira tu mano para que la niebla regrese y aparezca un nuevo animal");
+        }
+      }
+      break;
+    }
+
+    case S_REGENERATING: {
+      const elapsed = now - regenStart;
+      const dur = 1500;
+      const t = Math.min(elapsed / dur, 1);
+
+      // Blend fog buffer over current fog canvas
+      fogCtx.globalAlpha = t * t; // ease-in
+      fogCtx.drawImage(fogBuffer, 0, 0);
+      fogCtx.globalAlpha = 1;
+
+      if (t >= 1) {
+        _pickNext();
+        _enterFog();
+      }
+      break;
+    }
+  }
 }
 
-function _drawHUD(ctx, W, H) {
-    // Barra de progreso de revelación (abajo, centrada)
-    const barW    = Math.min(W * 0.5, 400);
-    const barH    = 6;
-    const barX    = (W - barW) / 2;
-    const barY    = H - 30;
-    const filled  = barW * Math.min(revealedPixels / REVEAL_THRESHOLD, 1);
+function _setStatusMsg(msg) {
+  if (statusMsg === msg) return;
+  statusMsg = msg;
+  // auto-clear short messages; keep instructional ones until overwritten
+  if (msg.length < 20) {
+    statusMsgTs = 0;
+  } else {
+    statusMsgTs = 0;
+  }
+}
 
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    _roundRect(ctx, barX, barY, barW, barH, 3);
-    ctx.fill();
+function _setStatus(msg) {
+  statusMsg = msg;
+}
 
-    const grad = ctx.createLinearGradient(barX, 0, barX + filled, 0);
-    grad.addColorStop(0,   "#004d20");
-    grad.addColorStop(0.5, "#00cc55");
-    grad.addColorStop(1,   "#00ff88");
+// ─── Eraser ───────────────────────────────────────────────────────────────────
+function _eraseAlongTrail(trail, W, H) {
+  if (trail.length === 0) return;
+
+  fogCtx.globalCompositeOperation = "destination-out";
+
+  for (let i = 0; i < trail.length; i++) {
+    const alpha = (i + 1) / trail.length;
+    const r = BRUSH_RADIUS * (0.6 + alpha * 0.4);
+
+    const grad = fogCtx.createRadialGradient(
+      trail[i].x, trail[i].y, 0,
+      trail[i].x, trail[i].y, r
+    );
+    grad.addColorStop(0, `rgba(0,0,0,${alpha})`);
+    grad.addColorStop(0.7, `rgba(0,0,0,${alpha * 0.6})`);
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+
+    fogCtx.fillStyle = grad;
+    fogCtx.beginPath();
+    fogCtx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
+    fogCtx.fill();
+  }
+
+  fogCtx.globalCompositeOperation = "source-over";
+}
+
+function _sampleReveal(W, H) {
+  const now = performance.now();
+  if (Math.floor(now * 10) % 3 !== 0) return;
+
+  try {
+    const sample = fogCtx.getImageData(0, 0, W, H);
+    const data = sample.data;
+    let transparent = 0;
+    for (let i = 3; i < data.length; i += 4 * 8) {
+      if (data[i] < 30) transparent++;
+    }
+    const total = data.length / (4 * 8);
+    revealedPixels = Math.round((transparent / total) * 100);
+  } catch (_) {}
+}
+
+// ─── Dibujado por estado ──────────────────────────────────────────────────────
+function _drawState(ctx, W, H, hands) {
+  const drawUtils = hands.length > 0 ? new DrawingUtils(ctx) : null;
+
+  switch (state) {
+    case S_FOG:
+      _drawFogOverlay(ctx, W, H);
+      if (hands.length > 0) _drawHands(ctx, hands, drawUtils, W, H);
+      break;
+
+    case S_CLEARING:
+      _drawHands(ctx, hands, drawUtils, W, H);
+      _drawProgressBar(ctx, W, H);
+      break;
+
+    case S_REVEALED:
+      _drawRevealBurst(ctx, W, H);
+      _drawInfoCloud(ctx, W, H);
+      if (hands.length > 0) _drawHands(ctx, hands, drawUtils, W, H);
+      break;
+
+    case S_REGENERATING:
+      if (hands.length > 0) _drawHands(ctx, hands, drawUtils, W, H);
+      break;
+  }
+
+  // Status message (on top of everything)
+  if (statusMsg) {
+    _drawStatusMessage(ctx, W, H);
+  }
+}
+
+// ─── Componentes visuales ─────────────────────────────────────────────────────
+
+function _drawFogOverlay(ctx, W, H) {
+  // Instruction text when no hands
+  ctx.save();
+  ctx.font = "bold 22px 'Segoe UI', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = "rgba(0, 255, 136, 0.7)";
+  ctx.shadowColor = "rgba(0,0,0,0.8)";
+  ctx.shadowBlur = 12;
+  ctx.fillText("🌿  Mueve tus manos para revelar la fauna del Yasuní", W / 2, H - 40);
+  ctx.restore();
+}
+
+function _drawHands(ctx, hands, drawUtils, W, H) {
+  hands.forEach((h) => {
+    drawUtils.drawConnectors(h.lm, HandLandmarker.HAND_CONNECTIONS, {
+      color: "rgba(0,255,136,0.35)",
+      lineWidth: 2,
+    });
+    drawUtils.drawLandmarks(h.lm, {
+      color: "rgba(0,255,136,0.6)",
+      lineWidth: 1,
+      radius: 3,
+    });
+
+    // Brush circle
+    ctx.beginPath();
+    ctx.arc(h.px, h.py, BRUSH_RADIUS * 0.5, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(0,255,136,0.5)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+}
+
+function _drawProgressBar(ctx, W, H) {
+  const barW = Math.min(W * 0.5, 400);
+  const barH = 6;
+  const barX = (W - barW) / 2;
+  const barY = H - 30;
+  const filled = barW * Math.min(revealedPixels / REVEAL_THRESHOLD, 1);
+
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  _roundRect(ctx, barX, barY, barW, barH, 3);
+  ctx.fill();
+
+  const grad = ctx.createLinearGradient(barX, 0, barX + filled, 0);
+  grad.addColorStop(0, "#004d20");
+  grad.addColorStop(0.5, "#00cc55");
+  grad.addColorStop(1, "#00ff88");
+  ctx.fillStyle = grad;
+  _roundRect(ctx, barX, barY, filled, barH, 3);
+  ctx.fill();
+}
+
+function _drawRevealBurst(ctx, W, H) {
+  const elapsed = performance.now() - revealTs;
+
+  // Radial burst that fades out over 0.6s
+  if (elapsed < 600) {
+    const t = elapsed / 600;
+    const radius = W * 1.2 * (1 - Math.pow(1 - t, 3));
+    const alpha = 1 - t;
+
+    const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, radius);
+    grad.addColorStop(0, `rgba(0, 255, 136, ${alpha * 0.3})`);
+    grad.addColorStop(0.5, `rgba(60, 195, 230, ${alpha * 0.15})`);
+    grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grad;
-    _roundRect(ctx, barX, barY, filled, barH, 3);
-    ctx.fill();
+    ctx.fillRect(0, 0, W, H);
 
-    // Contador de fotos
-    ctx.font      = "bold 14px 'Segoe UI', sans-serif";
-    ctx.fillStyle = "rgba(0,255,136,0.7)";
-    ctx.textAlign = "right";
-    ctx.fillText(`${currentPhotoIndex + 1} / ${YASUNI_PHOTOS.length}`, W - 24, H - 24);
-
-    // Si ya se completó — mensaje de "siguiente"
-    if (revealedPixels >= REVEAL_THRESHOLD && photoShownAt > 0) {
-        const elapsed = performance.now() / 1000 - photoShownAt;
-        const remaining = Math.max(0, PHOTO_SHOW_SECS - elapsed);
-        ctx.font      = "bold 18px 'Segoe UI', sans-serif";
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.textAlign = "center";
-        ctx.fillText(`¡Revelado! Siguiente en ${remaining.toFixed(1)}s…`, W / 2, H - 55);
-    }
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, radius * 0.7, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 255, 136, ${alpha * 0.5})`;
+    ctx.lineWidth = 3 * alpha;
+    ctx.stroke();
+  }
 }
 
-// ─── Parar ────────────────────────────────────────────────────────────────────
+function _drawInfoCloud(ctx, W, H) {
+  const elapsed = performance.now() - revealTs;
+  const animal = ANIMALS[currentIdx];
+
+  // Slide-up animation over 0.4s with 0.3s delay
+  const delay = 300;
+  const animDur = 400;
+  const phase = Math.max(0, Math.min(1, (elapsed - delay) / animDur));
+  const slideOffset = (1 - phase) * 60;
+  const alpha = phase;
+
+  if (phase <= 0) return;
+
+  // Glass card at bottom
+  const pad = 18;
+  const cardH = 100;
+  const cardW = Math.min(W - 40, 520);
+  const cx = (W - cardW) / 2;
+  const cy = H - cardH - 28 + slideOffset;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Background glass
+  ctx.fillStyle = "rgba(5, 18, 51, 0.75)";
+  _roundRect(ctx, cx, cy, cardW, cardH, 16);
+  ctx.fill();
+
+  // Border glow
+  ctx.strokeStyle = "rgba(60, 195, 230, 0.3)";
+  ctx.lineWidth = 1;
+  _roundRect(ctx, cx, cy, cardW, cardH, 16);
+  ctx.stroke();
+
+  // Inner shadow
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  _roundRect(ctx, cx + 2, cy + 2, cardW - 4, cardH / 2, 16);
+  ctx.fill();
+
+  // Emoji
+  ctx.font = "36px sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(animal.emoji, cx + pad, cy + 12);
+
+  // Name
+  ctx.font = "bold 22px 'Orbitron', sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const emojiRight = cx + pad + 46;
+  ctx.fillText(animal.name, emojiRight, cy + 16);
+
+  // Species label small
+  ctx.font = "11px 'Orbitron', sans-serif";
+  ctx.fillStyle = "rgba(60, 195, 230, 0.7)";
+  ctx.fillText("YASUNÍ · FAUNA", emojiRight, cy + 44);
+
+  // Fun fact
+  ctx.font = "14px 'Inter', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.78)";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(`💡 ${animal.fact}`, cx + pad, cy + cardH - 12);
+
+  ctx.restore();
+}
+
+function _drawStatusMessage(ctx, W, H) {
+  ctx.save();
+  ctx.font = "bold 18px 'Inter', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  const msgW = Math.min(W - 60, 500);
+  const msgH = 54;
+  const mx = (W - msgW) / 2;
+  const my = 80;
+
+  ctx.fillStyle = "rgba(5, 18, 51, 0.8)";
+  _roundRect(ctx, mx, my, msgW, msgH, 14);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(60, 195, 230, 0.2)";
+  ctx.lineWidth = 1;
+  _roundRect(ctx, mx, my, msgW, msgH, 14);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.fillText(statusMsg, W / 2, my + 16);
+  ctx.restore();
+}
+
+// ─── Stop ─────────────────────────────────────────────────────────────────────
 export function stopAnimalsAR() {
-    running = false;
-    if (animFrameId) cancelAnimationFrame(animFrameId);
+  running = false;
+  if (animFrameId) cancelAnimationFrame(animFrameId);
 
-    // Limpiar canvas extra del DOM
-    if (fogCanvas   && fogCanvas.parentNode)   fogCanvas.parentNode.removeChild(fogCanvas);
-    if (photoCanvas && photoCanvas.parentNode) photoCanvas.parentNode.removeChild(photoCanvas);
+  if (fogCanvas && fogCanvas.parentNode) fogCanvas.parentNode.removeChild(fogCanvas);
+  if (photoCanvas && photoCanvas.parentNode) photoCanvas.parentNode.removeChild(photoCanvas);
 
-    fogCanvas    = null;
-    photoCanvas  = null;
-    handTrails   = { Left: [], Right: [] };
+  fogCanvas = null;
+  photoCanvas = null;
+  fogBuffer = null;
+  handTrails = { Left: [], Right: [] };
+  prevIndices = [];
+  state = S_FOG;
 }
 
 // ─── Util ─────────────────────────────────────────────────────────────────────
 function _roundRect(ctx, x, y, w, h, r) {
-    if (w <= 0 || h <= 0) return;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y,     x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x,     y + h, r);
-    ctx.arcTo(x,     y + h, x,     y,     r);
-    ctx.arcTo(x,     y,     x + w, y,     r);
-    ctx.closePath();
+  if (w <= 0 || h <= 0) return;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
