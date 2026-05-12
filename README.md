@@ -1,28 +1,72 @@
-# 🪞 AR Mirror Web - Experiencias de Realidad Aumentada
+# AR Mirror Web
 
-Una aplicación web interactiva que utiliza Inteligencia Artificial y Visión Artificial (MediaPipe) para crear experiencias de Realidad Aumentada directamente en el navegador.
+Experiencias de cámara, gestos y realidad aumentada con una interfaz tipo cristal, profundidad 3D y energía espacial.
 
-## 🚀 Funcionalidades Actuales
+## Secciones
 
-### 1. 🐦 Flappy Nose
-Controla al famoso pájaro usando tu **nariz**. 
-- **Tecnología**: Face Landmarker de MediaPipe.
-- **Mecánica**: El pájaro sigue el eje vertical y horizontal de tu nariz en tiempo real[cite: 29]. Las tuberías se mueven de forma invertida para compensar el efecto espejo del video[cite: 29].
+### Animales AR
+Revela la fauna del Yasuní moviendo las manos frente a la cámara. La niebla digital se disipa con el movimiento de las manos, mostrando fotos reales de animales como el jaguar, anaconda, mono capuchino, búho moteado y delfín rosado.
+- **Modelo:** Hand Landmarker (MediaPipe)
+- **Mecánica:** Las manos actúan como "borrador" sobre una capa de niebla con `destination-out` compositing
 
-### 2. ✋ Traductor de Señas
-Detección avanzada de manos que interpreta gestos y letras del alfabeto de señas.
-- **Tecnología**: Hand Landmarker de MediaPipe (soporta hasta 2 manos).
-- **Diccionario**: Detecta números (1-5), letras (A, B, L, I), el símbolo de "Rock" y el gesto de "Bien" (pulgar arriba)[cite: 30].
-- **Lateralidad**: Identifica si la mano detectada es la izquierda o la derecha[cite: 30].
+### Lengua de Señas (LSEC)
+Reconocimiento visual en tiempo real del alfabeto dactilológico LSEC y gestos/expresiones. Panel dual: alfabeto A-Z + gestos como HOLA, GRACIAS, ADIÓS.
+- **Modelos:** Hand Landmarker + Gesture Recognizer (MediaPipe)
+- **Orientación:** Detecta palma/dorso y orientación de muñeca para distinguir letras similares
+- **Debounce:** 350ms para evitar parpadeo entre detecciones
 
-### 3. 🦁 Animales AR (En desarrollo)
-Detección de pose corporal para interactuar con elementos virtuales sobre los hombros o extremidades.
-- **Tecnología**: Pose Landmarker de MediaPipe.
+### Flappy Nose
+Controla el pájaro con la nariz. Sigue el eje vertical y horizontal de tu rostro en tiempo real.
+- **Modelo:** Face Landmarker (MediaPipe)
+- **Puntuación:** Sistema de colisión y conteo con tuberías invertidas (compensación de espejo)
 
-## 🛠️ Tecnologías Utilizadas
+### Air Piano
+Toca notas suspendidas en el aire. 8 teclas virtuales que se activan al tocar con la yema del dedo índice.
+- **Modelo:** Hand Landmarker (MediaPipe)
+- **Mecánica:** Posición del dedo índice vs zonas de teclas en la parte inferior de la pantalla
 
-- **Frontend**: HTML5, CSS3 (Variables, Flexbox, Grid)[cite: 24, 25].
-- **Lógica**: JavaScript (ES6 Modules)[cite: 27].
-- **IA/ML**: [MediaPipe Tasks Vision](https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3)[cite: 30].
-- **Procesamiento**: WebGL para aceleración por GPU[cite: 30].
+### Donkey Kong Fitness
+Sistema de sentadillas asistido por visión. Detecta la flexión de rodilla/cadera para contar repeticiones.
+- **Modelo:** Pose Landmarker (MediaPipe)
+- **Métrica:** Diferencia entre cadera y rodilla para detectar posición baja/alta
 
+### Antigravedad PUCE
+Simulación física con Matter.js + control por gestos de mano. 18 partículas con paleta cromática PUCE.
+- **Modelo:** Hand Landmarker (MediaPipe) + Matter.js
+- **Gestos:** Puño agarra/atrae partículas, mano abierta las dispersa con repulsión
+
+## Tecnologías
+
+- **Frontend:** HTML5, CSS3 (Custom Properties, Flexbox, Grid, Glassmorphism)
+- **Lógica:** JavaScript ES6 Modules
+- **IA/Visión:** MediaPipe Tasks Vision v0.10.3 (Face, Hand, Pose, Gesture)
+- **3D:** Three.js (escena de fondo en home)
+- **Física:** Matter.js (antigravedad)
+- **GPU:** WebGL para aceleración de modelos
+
+## Color Palette
+
+| Token | Hex | Uso |
+|---|---|---|
+| `--blue-main` | `#1F3F8B` | Fondo principal |
+| `--blue-secondary` | `#244DA1` | Gradientes de fondo |
+| `--blue-accent` | `#2FA4D9` | Acentos UI |
+| `--cyan-bright` | `#3CC3E6` | Brillos y sombras neón |
+| `--dark` | `#050816` | Base oscura |
+| `--glass` | RGBA(255,255,255,0.08) | Superficies vítreas |
+
+## Despliegue
+
+```bash
+# Servir con cualquier servidor HTTP estático
+python3 -m http.server 8080
+# o
+npx serve .
+```
+
+Abrir `http://localhost:8080` en un navegador con cámara (Chrome, Edge recomendados).
+Se requiere conexión HTTPS o localhost para acceso a cámara.
+
+## Licencia
+
+PUCE - Pontificia Universidad Católica del Ecuador
