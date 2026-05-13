@@ -96,7 +96,7 @@ function render() {
     if (result.landmarks?.length) {
       result.landmarks.forEach((lm) => {
         const tip = lm[8]; // dedo índice
-        const x = (1 - tip.x) * canvas.width;
+        const x = tip.x * canvas.width;
         const y = tip.y * canvas.height;
 
         if (y > canvas.height - 180) {

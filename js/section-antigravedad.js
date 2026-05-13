@@ -75,7 +75,7 @@ function gesture(lm) {
     return n === 0 ? "fist" : n >= 3 ? "open" : "neutral";
 }
 function palm(lm) {
-    return { x:((lm[0].x+lm[9].x)/2)*W, y:((lm[0].y+lm[9].y)/2)*H };
+    return { x:(1-(lm[0].x+lm[9].x)/2)*W, y:((lm[0].y+lm[9].y)/2)*H };
 }
 function closest(px, py) {
     let best=null, bd=Infinity;

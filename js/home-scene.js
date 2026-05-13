@@ -137,24 +137,6 @@ export function bindHomeCardEffects() {
         const section = getSectionFromCard(card);
         card.style.setProperty('--card-accent', CARD_ACCENTS[section] || '#3cc3e6');
 
-        card.addEventListener('pointermove', (event) => {
-            const rect = card.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            const rotateY = ((x / rect.width) - 0.5) * 10;
-            const rotateX = -((y / rect.height) - 0.5) * 10;
-
-            card.style.setProperty('--mx', `${x}px`);
-            card.style.setProperty('--my', `${y}px`);
-            card.style.setProperty('--rx', `${rotateX}deg`);
-            card.style.setProperty('--ry', `${rotateY}deg`);
-        });
-
-        card.addEventListener('pointerleave', () => {
-            card.style.setProperty('--rx', '0deg');
-            card.style.setProperty('--ry', '0deg');
-        });
-
         card.addEventListener('pointerdown', () => {
             card.classList.remove('is-pressed');
             void card.offsetWidth;

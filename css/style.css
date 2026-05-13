@@ -95,8 +95,15 @@ body::after {
         0 28px 80px rgba(0,0,0,.28),
         inset 0 1px 0 rgba(255,255,255,.26),
         inset 0 -24px 54px rgba(47,164,217,.08);
+    background:
+        linear-gradient(135deg, rgba(255,255,255,.24), rgba(255,255,255,.08)),
+        linear-gradient(160deg, rgba(31,63,139,.10), rgba(3,9,28,.10));
+    box-shadow:
+        0 28px 80px rgba(0,0,0,.28),
+        inset 0 1px 0 rgba(255,255,255,.32),
+        inset 0 -24px 54px rgba(47,164,217,.04);
     backdrop-filter: blur(22px) saturate(130%);
-    transform: rotateX(3deg);
+    transform: rotateX(1deg);
 }
 
 .hero-eyebrow {
@@ -177,7 +184,7 @@ h1 {
         inset 0 -22px 38px rgba(0,0,0,.16);
     backdrop-filter: blur(18px) saturate(150%);
     transform: translateZ(0) rotateX(var(--rx)) rotateY(var(--ry));
-    transition: transform .24s ease, border-color .24s ease, box-shadow .24s ease, background .24s ease;
+    transition: border-color .2s ease, box-shadow .2s ease;
     text-align: left;
     font: inherit;
 }
@@ -196,8 +203,6 @@ h1 {
         linear-gradient(115deg, transparent 0 28%, rgba(255,255,255,.24) 45%, transparent 62%),
         radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--card-accent), white 16%), transparent 28%);
     opacity: .22;
-    transform: translateX(-38%);
-    transition: transform .42s ease, opacity .32s ease;
 }
 
 .card::after {
@@ -218,20 +223,11 @@ h1 {
         0 26px 70px rgba(0,0,0,.42),
         0 0 38px color-mix(in srgb, var(--card-accent), transparent 62%),
         inset 0 1px 0 rgba(255,255,255,.36);
-    transform: translateY(-8px) translateZ(34px) rotateX(var(--rx)) rotateY(var(--ry));
-}
-
-.card:hover::before {
-    opacity: .42;
-    transform: translateX(34%);
+    transform: translateY(-4px) rotateX(var(--rx)) rotateY(var(--ry));
 }
 
 .card:active {
-    transform: translateY(-2px) scale(.985) rotateX(var(--rx)) rotateY(var(--ry));
-}
-
-.card.is-pressed::after {
-    animation: cosmicClick .56s ease-out;
+    transform: translateY(-1px) scale(.99) rotateX(var(--rx)) rotateY(var(--ry));
 }
 
 .card-brand {
@@ -361,6 +357,76 @@ nav {
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
+#intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(3, 6, 20, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.intro-modal {
+    width: min(480px, 88vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: clamp(20px, 4vw, 36px);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 28px;
+    background: radial-gradient(circle at 50% 0%, rgba(31,63,139,.4), rgba(3,9,28,.9));
+    box-shadow: 0 28px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2);
+    text-align: center;
+}
+
+.intro-icon {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.intro-title {
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    color: #fff;
+    text-shadow: 0 0 20px rgba(60,195,230,.3);
+}
+
+.intro-desc {
+    margin: 0;
+    color: rgba(255,255,255,.78);
+    font-size: .95rem;
+    line-height: 1.5;
+    max-width: 400px;
+}
+
+.intro-btn {
+    margin-top: 6px;
+    padding: 12px 36px;
+    border: 1px solid rgba(60,195,230,.5);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(47,164,217,.5), rgba(31,63,139,.6));
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: .9rem;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 6px 20px rgba(47,164,217,.15);
+    transition: background .2s;
+}
+
+.intro-btn:hover {
+    background: linear-gradient(135deg, rgba(47,164,217,.7), rgba(31,63,139,.8));
+}
+
+.intro-hint {
+    margin: 0;
+    color: rgba(255,255,255,.5);
+    font-size: .78rem;
+}
+
 #loading-overlay {
     position: fixed;
     inset: 0;
@@ -442,12 +508,6 @@ nav {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
-@keyframes cosmicClick {
-    0% { transform: scale(.72); opacity: .72; }
-    80% { transform: scale(3.8); opacity: .08; }
-    100% { transform: scale(4.4); opacity: 0; }
-}
 
 @media (max-width: 768px) {
     body { overflow-y: auto; }

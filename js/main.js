@@ -5,6 +5,7 @@ import { initAirPiano, stopAirPiano } from './section-airpiano.js';
 import { initDonkeyFitness, stopDonkeyFitness } from './section-donkeyfitness.js';
 import { initAntigravedad, stopAntigravedad } from './section-antigravedad.js';
 import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
+import { showIntro, waitForPerson, stopPresenceCheck } from './detector.js';
 
 const video = document.getElementById('webcam');
 const nav = document.getElementById('top-nav');
@@ -24,6 +25,7 @@ bindHomeCardEffects();
 
 window.showSection = async function(sectionId) {
     Object.values(sectionConfig).forEach(s => s.stop());
+    stopPresenceCheck();
 
     document.getElementById('sec-home').classList.add('hidden');
     document.getElementById('sec-app').classList.add('hidden');
@@ -47,6 +49,8 @@ window.showSection = async function(sectionId) {
 
     try {
         await startCamera();
+        await showIntro(sectionId);
+        await waitForPerson(video);
         await config.init();
     } catch (err) {
         console.error('Error al iniciar sección:', err);

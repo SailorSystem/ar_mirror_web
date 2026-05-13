@@ -1,31 +1,22 @@
 /**
- * section-senias.js — Traductor LSEC con orientación de mano y panel dual
+ * section-senias.js — Traductor LSEC con orientación de mano
  *
- * Panel VERDE  → Alfabeto dactilológico (letras A-Z, números)
- * Panel NARANJA → Gestos / expresiones (Hola, Adiós, Gracias, etc.)
- *
- * Mejoras sobre versión anterior:
- *  - Se detecta orientación de la mano (muñeca arriba/abajo, palma/dorso)
- *    para distinguir letras que se parecen pero se hacen en distinta posición.
- *  - GestureRecognizer corre en paralelo para saludos y expresiones.
- *  - Debounce de 400ms para evitar parpadeo entre letras similares.
+ * Panel VERDE → Alfabeto dactilológico (letras A-Z, números, Ñ, CH, RR)
  */
 
 import {
     HandLandmarker,
-    GestureRecognizer,
     FilesetResolver,
     DrawingUtils,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
 
-let handLandmarker, gestureRecognizer;
+let handLandmarker;
 let running = false;
 let canvas, ctx, drawingUtils;
 
 // Debounce por mano
-const lastLetter  = { Left:"", Right:"" };
-const lastGesture = { Left:"", Right:"" };
-const letterTs    = { Left:0,  Right:0  };
+const lastLetter = { Left:"", Right:"" };
+const letterTs   = { Left:0,  Right:0  };
 const DEBOUNCE_MS = 350;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -37,12 +28,6 @@ export async function initSenias() {
         baseOptions:{ modelAssetPath:"public/models/hand_landmarker.task", delegate:"GPU" },
         runningMode:"VIDEO", numHands:2,
     });
-    try {
-        gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
-            baseOptions:{ modelAssetPath:"public/models/gesture_recognizer.task", delegate:"GPU" },
-            runningMode:"VIDEO", numHands:2,
-        });
-    } catch(_){ gestureRecognizer=null; }
 
     canvas = document.getElementById("output_canvas");
     ctx    = canvas.getContext("2d");
@@ -60,41 +45,32 @@ function render(){
         canvas.height=video.videoHeight;
         const now=performance.now();
         const hr=handLandmarker.detectForVideo(video,now);
-        const gr=gestureRecognizer?gestureRecognizer.recognizeForVideo(video,now):null;
         ctx.clearRect(0,0,canvas.width,canvas.height);
 
-        const letters=[], gestures=[];
+        const letters=[];
 
         if(hr.landmarks?.length){
             hr.landmarks.forEach((lm,idx)=>{
                 drawingUtils.drawConnectors(lm,HandLandmarker.HAND_CONNECTIONS,{color:"#00FF88",lineWidth:3});
                 drawingUtils.drawLandmarks(lm,{color:"#FFF",lineWidth:1,radius:2});
 
-                const lado=hr.handedness?.[idx]?.[0]?.categoryName==="Left"?"Izquierda":"Derecha";
-                const key =lado==="Izquierda"?"Left":"Right";
+                let lado=hr.handedness?.[idx]?.[0]?.categoryName;
+                if (lado !== "Left" && lado !== "Right") {
+                  lado = lm[0].x > 0.5 ? "Left" : "Right";
+                }
+                const key = lado === "Left" ? "Left" : "Right";
+                const label = lado === "Left" ? "Izquierda" : "Derecha";
 
-                // Letra (alfabeto LSEC)
                 const letra=lsecAlphabet(lm);
                 const ts=now-letterTs[key];
                 if(letra!==lastLetter[key]||ts>DEBOUNCE_MS){
                     lastLetter[key]=letra; letterTs[key]=now;
                 }
-                letters.push(`${lado}: ${lastLetter[key]}`);
-
-                // Gesto / expresión
-                let gest=null;
-                if(gr?.gestures?.[idx]?.[0]){
-                    gest=mapGesture(gr.gestures[idx][0].categoryName);
-                }
-                if(!gest) gest=lsecPhrase(lm);
-                if(gest&&gest!==lastGesture[key]) lastGesture[key]=gest;
-                if(lastGesture[key]) gestures.push(`${lado}: ${lastGesture[key]}`);
+                letters.push(`${label}: ${lastLetter[key]}`);
             });
         }
 
         drawPanel(letters,  120, "#00ff88", "rgba(0,60,20,0.65)",  "Alfabeto LSEC");
-        if(gestures.length)
-            drawPanel(gestures, 200, "#ff9900", "rgba(60,30,0,0.65)",  "Gestos / Expresiones");
     }
     requestAnimationFrame(render);
 }

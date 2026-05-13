@@ -48,11 +48,12 @@ let regenStart = 0;
 
 // Pop-in del animal
 let revealTs = 0;
+const REVEAL_DURATION_MS = 8000;
 
 // Progreso de revelado
 let revealedPixels = 0;
-const REVEAL_THRESHOLD = 70;
-const BRUSH_RADIUS = 90;
+const REVEAL_THRESHOLD = 55;
+const BRUSH_RADIUS = 140;
 
 // Trail de manos
 const MAX_TRAIL = 6;
@@ -189,7 +190,7 @@ function _enterRevealed() {
   // Draw animal photo on photo canvas
   photoCtx.clearRect(0, 0, W, H);
   if (img) {
-    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const scale = Math.min(W / img.naturalWidth * 0.85, H / img.naturalHeight * 0.7);
     const dw = img.naturalWidth * scale;
     const dh = img.naturalHeight * scale;
     photoCtx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
@@ -370,16 +371,19 @@ function _updateState(hands, W, H) {
     }
 
     case S_REVEALED: {
-      if (!handPresent) {
-        // Hand removed → regenerate fog
+      const revealElapsed = now - revealTs;
+      if (revealElapsed > REVEAL_DURATION_MS) {
         _enterRegenerating();
         break;
       }
-      if (handStill) {
-        const elapsed = now - handStillSince;
-        if (elapsed > 3000) {
-          _setStatusMsg("🙌  Retira tu mano para que la niebla regrese y aparezca un nuevo animal");
-        }
+      // Skip to next if hand removed after minimum viewing time
+      if (!handPresent && revealElapsed > 2500) {
+        _enterRegenerating();
+        break;
+      }
+      if (revealElapsed > 2000) {
+        const remaining = Math.ceil((REVEAL_DURATION_MS - revealElapsed) / 1000);
+        _setStatusMsg(`🙌  Próximo animal en ${remaining}s — retira tu mano para saltar`);
       }
       break;
     }
@@ -496,8 +500,9 @@ function _drawState(ctx, W, H, hands) {
 // ─── Componentes visuales ─────────────────────────────────────────────────────
 
 function _drawFogOverlay(ctx, W, H) {
-  // Instruction text when no hands
   ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-W, 0);
   ctx.font = "bold 22px 'Segoe UI', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
@@ -552,25 +557,14 @@ function _drawProgressBar(ctx, W, H) {
 function _drawRevealBurst(ctx, W, H) {
   const elapsed = performance.now() - revealTs;
 
-  // Radial burst that fades out over 0.6s
-  if (elapsed < 600) {
-    const t = elapsed / 600;
-    const radius = W * 1.2 * (1 - Math.pow(1 - t, 3));
+  if (elapsed < 400) {
+    const t = elapsed / 400;
     const alpha = 1 - t;
-
-    const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, radius);
-    grad.addColorStop(0, `rgba(0, 255, 136, ${alpha * 0.3})`);
-    grad.addColorStop(0.5, `rgba(60, 195, 230, ${alpha * 0.15})`);
+    const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.6);
+    grad.addColorStop(0, `rgba(0, 255, 136, ${alpha * 0.2})`);
     grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-
-    // Outer ring
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2, radius * 0.7, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 255, 136, ${alpha * 0.5})`;
-    ctx.lineWidth = 3 * alpha;
-    ctx.stroke();
   }
 }
 
@@ -578,48 +572,42 @@ function _drawInfoCloud(ctx, W, H) {
   const elapsed = performance.now() - revealTs;
   const animal = ANIMALS[currentIdx];
 
-  // Slide-up animation over 0.4s with 0.3s delay
-  const delay = 300;
-  const animDur = 400;
+  const delay = 200;
+  const animDur = 300;
   const phase = Math.max(0, Math.min(1, (elapsed - delay) / animDur));
-  const slideOffset = (1 - phase) * 60;
   const alpha = phase;
 
   if (phase <= 0) return;
 
-  // Glass card at bottom
   const pad = 18;
   const cardH = 100;
   const cardW = Math.min(W - 40, 520);
   const cx = (W - cardW) / 2;
-  const cy = H - cardH - 28 + slideOffset;
+  const cy = H - cardH - 28;
 
   ctx.save();
   ctx.globalAlpha = alpha;
+  ctx.scale(-1, 1);
+  ctx.translate(-W, 0);
 
-  // Background glass
   ctx.fillStyle = "rgba(5, 18, 51, 0.75)";
   _roundRect(ctx, cx, cy, cardW, cardH, 16);
   ctx.fill();
 
-  // Border glow
   ctx.strokeStyle = "rgba(60, 195, 230, 0.3)";
   ctx.lineWidth = 1;
   _roundRect(ctx, cx, cy, cardW, cardH, 16);
   ctx.stroke();
 
-  // Inner shadow
   ctx.fillStyle = "rgba(255,255,255,0.04)";
   _roundRect(ctx, cx + 2, cy + 2, cardW - 4, cardH / 2, 16);
   ctx.fill();
 
-  // Emoji
   ctx.font = "36px sans-serif";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.fillText(animal.emoji, cx + pad, cy + 12);
 
-  // Name
   ctx.font = "bold 22px 'Orbitron', sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
@@ -627,12 +615,10 @@ function _drawInfoCloud(ctx, W, H) {
   const emojiRight = cx + pad + 46;
   ctx.fillText(animal.name, emojiRight, cy + 16);
 
-  // Species label small
   ctx.font = "11px 'Orbitron', sans-serif";
   ctx.fillStyle = "rgba(60, 195, 230, 0.7)";
   ctx.fillText("YASUNÍ · FAUNA", emojiRight, cy + 44);
 
-  // Fun fact
   ctx.font = "14px 'Inter', sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.78)";
   ctx.textBaseline = "bottom";
@@ -643,6 +629,8 @@ function _drawInfoCloud(ctx, W, H) {
 
 function _drawStatusMessage(ctx, W, H) {
   ctx.save();
+  ctx.scale(-1, 1);
+  ctx.translate(-W, 0);
   ctx.font = "bold 18px 'Inter', sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
