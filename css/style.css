@@ -86,21 +86,14 @@ body::after {
     flex-direction: column;
     align-items: center;
     padding: clamp(18px, 3vw, 30px);
-    border: 1px solid rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.18);
     border-radius: 32px;
     background:
-        linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.04)),
-        linear-gradient(160deg, rgba(31,63,139,.28), rgba(3,9,28,.26));
+        linear-gradient(135deg, rgba(255,255,255,.20), rgba(255,255,255,.06)),
+        linear-gradient(160deg, rgba(31,63,139,.08), rgba(3,9,28,.08));
     box-shadow:
         0 28px 80px rgba(0,0,0,.28),
-        inset 0 1px 0 rgba(255,255,255,.26),
-        inset 0 -24px 54px rgba(47,164,217,.08);
-    background:
-        linear-gradient(135deg, rgba(255,255,255,.24), rgba(255,255,255,.08)),
-        linear-gradient(160deg, rgba(31,63,139,.10), rgba(3,9,28,.10));
-    box-shadow:
-        0 28px 80px rgba(0,0,0,.28),
-        inset 0 1px 0 rgba(255,255,255,.32),
+        inset 0 1px 0 rgba(255,255,255,.30),
         inset 0 -24px 54px rgba(47,164,217,.04);
     backdrop-filter: blur(22px) saturate(130%);
     transform: rotateX(1deg);
@@ -115,14 +108,38 @@ body::after {
     opacity: .9;
 }
 
-.hero-logo,
-.nav-logo {
-    filter: drop-shadow(0 10px 26px rgba(0,0,0,.38));
+.hero-logo-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 28px;
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(240,245,255,.82));
+    box-shadow:
+        0 8px 32px rgba(0,0,0,.12),
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 -2px 6px rgba(31,63,139,.06);
+    margin: 12px 0 4px;
+    backdrop-filter: blur(4px);
+    transition: box-shadow .25s ease;
+}
+
+.hero-shell:hover .hero-logo-badge {
+    box-shadow:
+        0 12px 40px rgba(0,0,0,.18),
+        0 0 30px rgba(60,195,230,.08),
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 -2px 6px rgba(31,63,139,.06);
 }
 
 .hero-logo {
-    width: min(360px, 72vw);
-    margin: 8px 0 0;
+    display: block;
+    width: min(360px, 66vw);
+    height: auto;
+}
+
+.nav-logo {
+    filter: drop-shadow(0 10px 26px rgba(0,0,0,.38));
 }
 
 h1 {
@@ -157,18 +174,16 @@ h1 {
 
 .card {
     --card-accent: var(--cyan-bright);
-    --mx: 50%;
-    --my: 50%;
     --rx: 0deg;
     --ry: 0deg;
     position: relative;
-    min-height: 162px;
+    min-height: 130px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-end;
-    gap: 7px;
-    padding: 24px;
+    gap: 6px;
+    padding: 18px 22px;
     border: 1px solid color-mix(in srgb, var(--card-accent), white 20%);
     border-radius: 24px;
     color: white;
@@ -232,22 +247,7 @@ h1 {
 
 .card-brand {
     --card-accent: #5dffb4;
-    min-height: 180px;
-}
-
-.card-icon {
-    position: absolute;
-    top: 18px;
-    left: 20px;
-    display: grid;
-    place-items: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 18px;
-    background: rgba(255,255,255,.11);
-    border: 1px solid rgba(255,255,255,.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
-    font-size: 1.55rem;
+    min-height: 150px;
 }
 
 .card-kicker {
@@ -515,7 +515,7 @@ nav {
     .hero { justify-content: flex-start; padding-top: 22px; }
     .hero-shell { border-radius: 24px; }
     .menu-grid { grid-template-columns: 1fr; width: min(520px, 94vw); }
-    .card { min-height: 150px; }
+    .card { min-height: 110px; }
 }
 
 @media (max-width: 480px) {
@@ -524,12 +524,12 @@ nav {
     .hero { justify-content: flex-start; padding-top: 16px; gap: 6px; }
     .hero-shell { border-radius: 16px; padding: 14px; }
     .hero-eyebrow { font-size: .6rem; }
-    .hero-logo { width: min(260px, 80vw); }
+    .hero-logo-badge { padding: 8px 16px; border-radius: 14px; }
+    .hero-logo { width: min(240px, 74vw); }
     h1 { font-size: clamp(1.4rem, 6vw, 2rem); }
     .hero-copy { font-size: .82rem; }
-    .card { min-height: 120px; padding: 14px; gap: 5px; border-radius: 18px; }
-    .card-brand { min-height: 140px; }
-    .card-icon { width: 34px; height: 34px; font-size: 1.1rem; top: 10px; left: 12px; border-radius: 12px; }
+    .card { min-height: 100px; padding: 12px 14px; gap: 4px; border-radius: 18px; }
+    .card-brand { min-height: 120px; }
     .card-title { font-size: .88rem; }
     .card-kicker { font-size: .6rem; }
     .card-copy { font-size: .78rem; }
