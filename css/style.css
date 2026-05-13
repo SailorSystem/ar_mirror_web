@@ -112,24 +112,23 @@ body::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 28px;
+    padding: 10px 24px;
     border-radius: 20px;
-    background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(240,245,255,.82));
+    background: linear-gradient(145deg, rgba(255,255,255,.30), rgba(220,235,255,.20));
     box-shadow:
-        0 8px 32px rgba(0,0,0,.12),
-        inset 0 1px 0 rgba(255,255,255,.9),
-        inset 0 -2px 6px rgba(31,63,139,.06);
-    margin: 12px 0 4px;
-    backdrop-filter: blur(4px);
+        0 8px 32px rgba(0,0,0,.08),
+        inset 0 1px 0 rgba(255,255,255,.35);
+    margin: 10px 0 2px;
+    backdrop-filter: blur(8px);
     transition: box-shadow .25s ease;
+    border: 1px solid rgba(255,255,255,.12);
 }
 
 .hero-shell:hover .hero-logo-badge {
     box-shadow:
-        0 12px 40px rgba(0,0,0,.18),
-        0 0 30px rgba(60,195,230,.08),
-        inset 0 1px 0 rgba(255,255,255,.9),
-        inset 0 -2px 6px rgba(31,63,139,.06);
+        0 12px 40px rgba(0,0,0,.14),
+        0 0 30px rgba(60,195,230,.06),
+        inset 0 1px 0 rgba(255,255,255,.40);
 }
 
 .hero-logo {
@@ -524,7 +523,7 @@ nav {
     .hero { justify-content: flex-start; padding-top: 16px; gap: 6px; }
     .hero-shell { border-radius: 16px; padding: 14px; }
     .hero-eyebrow { font-size: .6rem; }
-    .hero-logo-badge { padding: 8px 16px; border-radius: 14px; }
+    .hero-logo-badge { padding: 6px 14px; border-radius: 14px; }
     .hero-logo { width: min(240px, 74vw); }
     h1 { font-size: clamp(1.4rem, 6vw, 2rem); }
     .hero-copy { font-size: .82rem; }
