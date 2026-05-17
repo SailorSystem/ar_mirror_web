@@ -50,7 +50,10 @@ window.showSection = async function(sectionId) {
     try {
         await startCamera();
         await showIntro(sectionId);
+        const overlay = document.getElementById('loading-overlay');
+        overlay.classList.remove('hidden');
         await waitForPerson(video);
+        overlay.classList.add('hidden');
         await config.init();
     } catch (err) {
         console.error('Error al iniciar sección:', err);
@@ -61,17 +64,11 @@ window.showSection = async function(sectionId) {
 document.getElementById('btn-home').onclick = () => window.showSection('home');
 
 async function startCamera() {
-    const overlay = document.getElementById('loading-overlay');
-    overlay.classList.remove('hidden');
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        video.srcObject = stream;
-        await new Promise(resolve => video.onloadedmetadata = resolve);
-    } finally {
-        overlay.classList.add('hidden');
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = stream;
+    await new Promise(resolve => video.onloadedmetadata = resolve);
 }
 
 function stopCamera() {

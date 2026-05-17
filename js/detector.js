@@ -1,5 +1,3 @@
-import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-
 let handLandmarker = null;
 let detectionRunning = false;
 
@@ -7,16 +5,35 @@ export function getHandLandmarker() {
   return handLandmarker;
 }
 
+function setStatus(msg) {
+  const el = document.getElementById("loading-status");
+  if (el) el.textContent = msg;
+}
+
 export async function ensureModels() {
   if (handLandmarker) return;
+  setStatus("Cargando modelo de detección…");
+  const { HandLandmarker, FilesetResolver } = await import(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"
+  );
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
   );
-  handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "GPU" },
-    runningMode: "VIDEO",
-    numHands: 2,
-  });
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "GPU" },
+      runningMode: "VIDEO",
+      numHands: 2,
+    });
+  } catch (_) {
+    console.warn("GPU no disponible, usando CPU");
+    setStatus("GPU no disponible, cambiando a CPU…");
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "CPU" },
+      runningMode: "VIDEO",
+      numHands: 2,
+    });
+  }
 }
 
 const INTRO_TEXT = {
@@ -59,7 +76,7 @@ function ensureIntroContainer() {
       <h2 class="intro-title"></h2>
       <p class="intro-desc"></p>
       <button class="intro-btn">Comenzar</button>
-      <p class="intro-hint">Acerca tu mano a la cámara para empezar</p>
+      <p class="intro-hint">Presiona "Comenzar" para iniciar la experiencia</p>
     </div>`;
   document.body.appendChild(el);
 }
@@ -86,19 +103,29 @@ export function showIntro(sectionId) {
 }
 
 export async function waitForPerson(videoElement) {
+  setStatus("Iniciando detección de presencia…");
   await ensureModels();
+  setStatus("Acerca tu mano a la cámara…");
   return new Promise((resolve) => {
     detectionRunning = true;
+    const started = performance.now();
+    const TIMEOUT = 15000;
 
     function detect() {
-      if (!detectionRunning) return;
+      if (!detectionRunning) return resolve();
+      if (performance.now() - started > TIMEOUT) {
+        console.warn("Tiempo agotado — continuando sin detección");
+        detectionRunning = false;
+        return resolve();
+      }
       if (videoElement.readyState === 4) {
-        const result = handLandmarker.detectForVideo(videoElement, performance.now());
-        if (result.landmarks && result.landmarks.length > 0) {
-          detectionRunning = false;
-          resolve();
-          return;
-        }
+        try {
+          const result = handLandmarker.detectForVideo(videoElement, performance.now());
+          if (result.landmarks && result.landmarks.length > 0) {
+            detectionRunning = false;
+            return resolve();
+          }
+        } catch (_) {}
       }
       requestAnimationFrame(detect);
     }
