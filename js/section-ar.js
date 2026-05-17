@@ -509,7 +509,7 @@ function _drawFogOverlay(ctx, W, H) {
   ctx.fillStyle = "rgba(0, 255, 136, 0.7)";
   ctx.shadowColor = "rgba(0,0,0,0.8)";
   ctx.shadowBlur = 12;
-  ctx.fillText("🌿  Mueve tus manos para revelar la fauna del Yasuní", W / 2, H - 40);
+  ctx.fillText("🌿  Mueve tus manos para revelar la fauna del Yasuní", W / 2, H - 60);
   ctx.restore();
 }
 
@@ -638,7 +638,7 @@ function _drawStatusMessage(ctx, W, H) {
   const msgW = Math.min(W - 60, 500);
   const msgH = 54;
   const mx = (W - msgW) / 2;
-  const my = 80;
+  const my = 110;
 
   ctx.fillStyle = "rgba(5, 18, 51, 0.8)";
   _roundRect(ctx, mx, my, msgW, msgH, 14);

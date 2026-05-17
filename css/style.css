@@ -310,6 +310,7 @@ nav {
     justify-content: space-between;
     gap: 8px;
     padding: 0 18px;
+    padding-top: calc(0px + env(safe-area-inset-top, 0px));
     z-index: 100;
     border: 1px solid rgba(255,255,255,.14);
     border-radius: 18px;

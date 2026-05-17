@@ -22,6 +22,7 @@ const sectionConfig = {
 
 initHomeScene();
 bindHomeCardEffects();
+import('./detector.js').then(m => m.ensureModels().catch(() => {}));
 
 window.showSection = async function(sectionId) {
     Object.values(sectionConfig).forEach(s => s.stop());

@@ -21,7 +21,7 @@ const PUCE_PALETTE = [
     "#C8A951","#C8A951","#D4B86A",
     "#FFFFFF","#E8E8E8",
 ];
-const BALL_COUNT = 18;
+const BALL_COUNT = 10;
 
 // ─── Cargar Matter.js desde CDN ───────────────────────────────────────────────
 async function loadMatter() {
@@ -219,9 +219,10 @@ function drawHUD(ctx,hands){
     ctx.save();
     ctx.font="bold 19px 'Segoe UI',sans-serif";
     ctx.textBaseline="top"; ctx.textAlign="left";
+    const topY = 70;
     if(!hands.length){
         ctx.fillStyle="rgba(200,169,81,0.7)";
-        ctx.fillText("✋  Acerca una mano para interactuar",20,20);
+        ctx.fillText("✋  Acerca una mano para interactuar",20,topY);
     } else {
         hands.forEach((h,i)=>{
             const [txt,col]=h.g==="fist"
@@ -230,12 +231,12 @@ function drawHUD(ctx,hands){
                 ?["🖐  Mano abierta — dispersando","#00ff88"]
                 :["🤚  Neutral","#ffffff"];
             ctx.fillStyle=col;
-            ctx.fillText(txt,20,20+i*30);
+            ctx.fillText(txt,20,topY+i*30);
         });
     }
     ctx.textAlign="right"; ctx.fillStyle="rgba(200,169,81,0.5)";
     ctx.font="14px 'Segoe UI',sans-serif";
-    ctx.fillText("PUCE · Matter.js + MediaPipe",W-16,20);
+    ctx.fillText("PUCE · Matter.js + MediaPipe",W-16,topY);
     ctx.restore();
 }
 
