@@ -60,6 +60,14 @@ const INTRO_TEXT = {
   donkeyfitness: {
     title: "Donkey Kong Fitness",
     desc: "Ponte en cuclillas para que Donkey Kong salte y evite obstáculos. ¡A moverse!"
+  },
+  voicebird: {
+    title: "Flappy Voice",
+    desc: "Controla el vuelo con tu voz. Entre más agudo cantes, más alto volará el pájaro."
+  },
+  pullup: {
+    title: "Pull-up Coach",
+    desc: "Entrenador de dominadas con IA. Ponte frente a la cámara y salta para cruzar la barra."
   }
 };
 
@@ -88,7 +96,8 @@ export function showIntro(sectionId) {
     const info = INTRO_TEXT[sectionId] || { title: sectionId, desc: "" };
     overlay.querySelector(".intro-icon").textContent = {
       animals: "🦁", senias: "✋", airpiano: "🎹",
-      antigravedad: "🪐", game: "🐦", donkeyfitness: "🦍"
+      antigravedad: "🪐", game: "🐦", donkeyfitness: "🦍",
+      voicebird: "🎤", pullup: "💪"
     }[sectionId] || "✨";
     overlay.querySelector(".intro-title").textContent = info.title;
     overlay.querySelector(".intro-desc").textContent = info.desc;

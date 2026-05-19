@@ -17,6 +17,8 @@ const CARD_ACCENTS = {
     senias: '#7fd7ff',
     game: '#ffd166',
     airpiano: '#d28cff',
+    voicebird: '#ffd166',
+    pullup: '#ff6b6b',
     donkeyfitness: '#ff8f70',
     antigravedad: '#9cf7ff',
 };

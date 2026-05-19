@@ -1,0 +1,35 @@
+
+Palabras de mi jefe
+
+1. Entrenador de Dominadas (Pull-up Coach / Rep Counter)
+​Para el sistema de conteo de repeticiones basado en visión artificial (como el de la segunda imagen), existen proyectos maduros que utilizan Mediapipe o YOLO:
+​pullupCounterPublic: Un contador de dominadas basado en analítica de video que utiliza modelos de Deep Learning (YOLOv8). Compara la posición de la nariz del atleta con la altura de la barra.
+​Fitness-AI-coach: Una aplicación más completa que utiliza Mediapipe y OpenCV para contar repeticiones de varios ejercicios (pull-ups, flexiones, sentadillas) e incluye comandos de voz.
+​pull-up_tracker: Utiliza YOLOv5 para reconocer y contar dominadas en tiempo real o desde archivos de video.
+​2. Flappy Bird Controlado por Voz (Pitch Detection)
+​Para el juego de la primera imagen ("Flappy Bird controlado por tono de voz"), la clave es la detección de frecuencia (Pitch Detection):
+​PitchDetector for Godot: Si quieres construir el juego en un motor profesional, este plugin permite detectar el tono de voz en tiempo real para controlar mecánicas de salto basadas en la frecuencia.
+​AllKaraoke: Aunque es un juego de karaoke, su motor de detección de tono en el navegador (JavaScript) es la base técnica exacta para mover un personaje hacia arriba o abajo según la nota que cantes.
+​Voice-Controlled-Flappy-Bird: (Búsqueda recomendada) Existen múltiples clones en Python/Pygame que utilizan la librería pyaudio para mapear el volumen o el tono del micrófono al salto del ave.
+[7:18 p. m., 14/5/2026] Francisco Rodríguez Profe PUCE: Fitness AI Coach (Mediapipe + OpenCV):
+https://github.com/RiccardoRiccio/Fitness-AI-coach
+Este es el más completo, ya que analiza la geometría del cuerpo para validar si el ejercicio se realiza correctamente.
+​Pull-up Counter (YOLOv8):
+https://github.com/jamtheim/pullupCounterPublic
+Utiliza detección de objetos de última generación para identificar la barra y la posición de la cabeza del atleta.
+​Pose Estimation Guide (Mediapipe):
+https://github.com/google-ai-edge/mediapipe
+Este es el repositorio oficial de la tecnología que utilizan casi todos estos proyectos. Es fundamental para entender cómo extraer los puntos clave (landmarks) del cuerpo humano.
+​Repositorios de Audio (Control por Tono de Voz)
+​Para proyectos como el "Flappy Bird" controlado por voz, estos vínculos te llevarán a motores de detección de frecuencia:
+​Pitch Detector (JavaScript/Web):
+https://github.com/jbc2001/PitchDetector
+Ideal si quieres desarrollar algo que funcione directamente en el navegador (como se ve en la captura de pantalla con la URL de Chrome).
+​Voice Control Game (Python):
+https://github.com/YashSachan/Voice-Controlled-Flappy-Bird
+Un ejemplo sencillo en Python que mapea la intensidad o frecuencia del sonido a la mecánica de salto.
+​Aubio (Librería de Análisis de Audio):
+https://github.com/aubio/aubio
+Una herramienta profesional de código abierto para etiquetar sonidos y detectar tonos en tiempo real.
+​Nota: La mayoría de estos proyectos requieren instalar dependencias mediante pip install (en el caso de Python) o manejar entornos de Node.js para las versiones web. Si necesitas ayuda con el despliegue de alguno en particular, no dudes en decirme.
+[7:19 p. m., 14/5/2026] Francisco Rodríguez Profe PUCE: Ponle tu toque, dejaos puntos de coordenadas visibles
