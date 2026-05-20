@@ -6,8 +6,8 @@ let reps = 0;
 let isAbove = false;
 let barY = 0;
 let barSet = false;
+let calibrating = true;
 let startTime = 0;
-let elapsed = 0;
 let flashAlpha = 0;
 let particles = [];
 
@@ -43,7 +43,8 @@ export async function initPullup() {
     });
   }
 
-  reps = 0; isAbove = false; barSet = false; particles = []; flashAlpha = 0;
+  reps = 0; isAbove = false; barSet = false; calibrating = true;
+  particles = []; flashAlpha = 0;
   startTime = performance.now();
   running = true;
   render();
@@ -150,34 +151,46 @@ function render() {
     if (result.landmarks?.[0]) {
       const lm = result.landmarks[0];
 
-      if (!barSet && lm[0]) {
-        barY = lm[0].y * H - 60;
+      // Barra adaptativa basada en proporciones del cuerpo
+      if (!barSet && lm[0] && lm[11] && lm[12]) {
+        const noseY = lm[0].y * H;
+        const shoulderY = ((lm[11].y + lm[12].y) / 2) * H;
+        const headLength = shoulderY - noseY;
+        barY = noseY - headLength * 0.7;
         barSet = true;
+        calibrating = false;
       }
 
       drawSkeleton(ctx, lm, W, H);
 
       if (barSet) {
-        ctx.beginPath();
-        ctx.moveTo(0, barY);
-        ctx.lineTo(W, barY);
-        ctx.strokeStyle = "rgba(255,107,107,0.7)";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "#ff6b6b";
-        ctx.shadowBlur = 20;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-
-        ctx.fillStyle = "rgba(255,107,107,0.12)";
+        // Zona de barra (arriba)
+        ctx.fillStyle = "rgba(255,107,107,0.08)";
         ctx.fillRect(0, 0, W, barY);
 
-        ctx.font = "12px 'Orbitron', sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#ff6b6b";
+        // Línea de barra con efecto de tubo
+        const tubeH = 14;
+        const grad = ctx.createLinearGradient(0, barY - tubeH / 2, 0, barY + tubeH / 2);
+        grad.addColorStop(0, "rgba(255,107,107,0.15)");
+        grad.addColorStop(0.3, "rgba(255,107,107,0.7)");
+        grad.addColorStop(0.7, "rgba(255,107,107,0.7)");
+        grad.addColorStop(1, "rgba(255,107,107,0.15)");
+        ctx.fillStyle = grad;
         ctx.shadowColor = "#ff6b6b";
-        ctx.shadowBlur = 10;
-        ctx.fillText("━ BARRA ━", 16, barY - 10);
+        ctx.shadowBlur = 25;
+        ctx.fillRect(0, barY - tubeH / 2, W, tubeH);
         ctx.shadowBlur = 0;
+
+        // Destellos en los extremos del tubo
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        for (let x = 0; x < W; x += W / 3) {
+          ctx.fillRect(x, barY - tubeH / 2 + 2, 40, tubeH - 4);
+        }
+
+        ctx.font = "10px 'Orbitron', sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "rgba(255,107,107,0.6)";
+        ctx.fillText("⬆ CRUZA LA BARRA ⬆", 18, barY + 3);
 
         const noseY = lm[0].y * H;
         const nowAbove = noseY < barY - 8;
@@ -195,30 +208,53 @@ function render() {
         isAbove = nowAbove;
       }
 
-      ctx.save();
-      ctx.font = "bold 42px 'Cinzel', serif";
+      if (calibrating) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(0, H / 2 - 36, W, 72);
+        ctx.fillStyle = "#ff6b6b";
+        ctx.font = "bold 18px 'Orbitron', sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "#ff6b6b";
+        ctx.shadowBlur = 16;
+        ctx.fillText("🔄 Párate derecho frente a la cámara", W / 2, H / 2);
+        ctx.restore();
+      }
+
+      // HUD con fondo para el contador
+      const hudW = 140;
+      const hudH = 64;
+      const hudX = 18;
+      const hudY = 18;
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.beginPath();
+      ctx.roundRect(hudX, hudY, hudW, hudH, 10);
+      ctx.fill();
+
+      ctx.font = "bold 40px 'Cinzel', serif";
       ctx.textAlign = "left";
       ctx.fillStyle = "#fff";
       ctx.shadowColor = "#ff6b6b";
-      ctx.shadowBlur = 18;
-      ctx.fillText(`${reps}`, 24, 60);
+      ctx.shadowBlur = 14;
+      ctx.fillText(`${reps}`, hudX + 18, hudY + 48);
       ctx.shadowBlur = 0;
-      ctx.font = "11px 'Orbitron', sans-serif";
+      ctx.font = "10px 'Orbitron', sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.fillText("REPS", 72, 54);
+      ctx.fillText("REPS", hudX + 72, hudY + 42);
 
       elapsed = (performance.now() - startTime) / 1000;
       const mins = Math.floor(elapsed / 60);
       const secs = Math.floor(elapsed % 60);
-      ctx.font = "18px 'Orbitron', sans-serif";
+      ctx.font = "16px 'Orbitron', sans-serif";
       ctx.textAlign = "right";
-      ctx.fillStyle = "rgba(255,255,255,0.6)";
-      ctx.fillText(`${mins}:${secs.toString().padStart(2, "0")}`, W - 20, 48);
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText(`${mins}:${secs.toString().padStart(2, "0")}`, W - 20, 44);
       ctx.font = "9px 'Orbitron', sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.fillText("TIEMPO", W - 20, 62);
-      ctx.restore();
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.fillText("TIEMPO", W - 20, 58);
 
+      // Barra de progreso
       if (reps > 0) {
         const barW = Math.min(W - 80, 300);
         const barX = (W - barW) / 2;

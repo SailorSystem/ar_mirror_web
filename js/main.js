@@ -39,6 +39,8 @@ window.showSection = async function(sectionId) {
     if (sectionId === 'home') {
         document.getElementById('sec-home').classList.remove('hidden');
         stopCamera();
+        const c = document.getElementById('output_canvas');
+        c.width = 1; c.height = 1;
         return;
     }
 
@@ -53,6 +55,11 @@ window.showSection = async function(sectionId) {
     sectionTitle.innerText = config.title;
 
     try {
+        const c = document.getElementById('output_canvas');
+        c.width = 640; c.height = 480;
+        c.getContext('2d').fillStyle = '#000';
+        c.getContext('2d').fillRect(0, 0, 640, 480);
+
         await startCamera();
         await showIntro(sectionId);
         const overlay = document.getElementById('loading-overlay');

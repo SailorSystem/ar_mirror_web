@@ -6,7 +6,7 @@ let score = 0;
 
 const bird = { x: 100, y: 300, w: 45, h: 35, img: new Image() };
 const pipes = [];
-const pipeSettings = { width: 60, gap: 160, speed: 3.5 };
+const pipeSettings = { width: 60, gap: 190, speed: 3.5 };
 
 bird.img.src = "assets/textures/bluebird-upflap.png";
 const pipeImg = new Image(); pipeImg.src = "assets/textures/pipe-green.png";
@@ -153,68 +153,78 @@ function animate() {
       if (calibrated && smoothPitch > 0) {
         let t = (smoothPitch - pitchMin) / (pitchMax - pitchMin);
         t = Math.max(0, Math.min(1, t));
-        const targetY = H * 0.12 + (1 - t) * (H * 0.65);
-        bird.y += (targetY - bird.y) * 0.18;
+        const targetY = H * 0.12 + (1 - t) * (H * 0.60);
+        bird.y += (targetY - bird.y) * 0.28;
       } else if (!calibrated) {
-        bird.y += 1.5;
+        bird.y += 1.0;
       } else {
-        bird.y += 2.5;
+        bird.y += 2.0;
       }
 
-      bird.y = Math.max(20, Math.min(H - 100, bird.y));
+      bird.y = Math.max(15, Math.min(H - 90, bird.y));
 
       ctx.save();
-      ctx.globalAlpha = 0.12;
+      ctx.globalAlpha = 0.10;
       for (let i = 0; i < dataArray.length; i += 4) {
         const x = (i / dataArray.length) * W;
         const amp = (dataArray[i] + 1) * 0.5;
         ctx.fillStyle = "#3CC3E6";
-        ctx.fillRect(x, H - 20 - amp * 16, 2, amp * 16);
+        ctx.fillRect(x, H - 18 - amp * 14, 2, amp * 14);
       }
       ctx.restore();
 
       if (calibrated) {
-        const barX = W - 30;
+        const barX = W - 28;
         const barH = H * 0.55;
         const barY = H * 0.12;
         const pitchNorm = (smoothPitch - pitchMin) / (pitchMax - pitchMin);
         const indicatorY = barY + (1 - Math.max(0, Math.min(1, pitchNorm))) * barH;
 
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        ctx.fillRect(barX, barY, 12, barH);
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, 10, barH, 5);
+        ctx.fill();
 
         const grad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
         grad.addColorStop(0, "#3CC3E6");
         grad.addColorStop(0.5, "#ffd166");
         grad.addColorStop(1, "#ff6b6b");
         ctx.fillStyle = grad;
-        ctx.fillRect(barX + 2, indicatorY - 3, 8, 6);
-
-        ctx.shadowColor = "#3CC3E6";
-        ctx.shadowBlur = 12;
-        ctx.fillRect(barX + 2, indicatorY - 3, 8, 6);
+        ctx.shadowColor = "#ffd166";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(barX - 1, indicatorY - 4, 12, 8, 4);
+        ctx.fill();
         ctx.shadowBlur = 0;
 
-        ctx.font = "9px 'Orbitron', sans-serif";
+        ctx.font = "8px 'Orbitron', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText("TONO", barX + 6, barY - 8);
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.fillText("TONO", barX + 5, barY - 6);
       }
     } else {
-      bird.y += 1.5;
+      bird.y += 1.0;
     }
 
-    if (frameCount % 90 === 0) {
+    // Tuberías con aparición gradual
+    if (frameCount % 100 === 0) {
       const minH = 50;
       const maxH = H - pipeSettings.gap - minH - 50;
       const randomY = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
-      pipes.push({ x: 0 - pipeSettings.width, y: randomY, passed: false });
+      pipes.push({
+        x: 0 - pipeSettings.width,
+        y: randomY,
+        passed: false,
+        fadeIn: 0,
+      });
     }
 
     for (let i = pipes.length - 1; i >= 0; i--) {
       const p = pipes[i];
       p.x += pipeSettings.speed;
+      if (p.fadeIn < 1) p.fadeIn = Math.min(1, p.fadeIn + 0.04);
 
+      ctx.globalAlpha = p.fadeIn;
       ctx.save();
       ctx.translate(p.x + pipeSettings.width / 2, p.y);
       ctx.scale(1, -1);
@@ -222,6 +232,7 @@ function animate() {
       ctx.restore();
 
       ctx.drawImage(pipeImg, p.x, p.y + pipeSettings.gap, pipeSettings.width, H - (p.y + pipeSettings.gap));
+      ctx.globalAlpha = 1;
 
       if (checkCollision(p, H)) {
         showGameOver();
