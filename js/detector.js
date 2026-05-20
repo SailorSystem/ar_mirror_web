@@ -68,6 +68,10 @@ const INTRO_TEXT = {
   pullup: {
     title: "Pull-up Coach",
     desc: "Entrenador de dominadas con IA. Ponte frente a la cámara y salta para cruzar la barra."
+  },
+  vozsenias: {
+    title: "Voz a Señas",
+    desc: "Habla al micrófono y el sistema traduce tu voz a texto y a lengua de señas con imágenes en tiempo real."
   }
 };
 
@@ -97,7 +101,7 @@ export function showIntro(sectionId) {
     overlay.querySelector(".intro-icon").textContent = {
       animals: "🦁", senias: "✋", airpiano: "🎹",
       antigravedad: "🪐", game: "🐦", donkeyfitness: "🦍",
-      voicebird: "🎤", pullup: "💪"
+      voicebird: "🎤", pullup: "💪", vozsenias: "🎤"
     }[sectionId] || "✨";
     overlay.querySelector(".intro-title").textContent = info.title;
     overlay.querySelector(".intro-desc").textContent = info.desc;

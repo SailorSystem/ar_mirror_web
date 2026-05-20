@@ -1,6 +1,7 @@
 import { initFlappyGame, stopFlappyGame } from './section-game.js';
 import { initAnimalsAR, stopAnimalsAR } from './section-ar.js';
 import { initSenias, stopSenias } from './section-senias.js';
+import { initVozSenias, stopVozSenias } from './section-vozsenias.js';
 import { initAirPiano, stopAirPiano } from './section-airpiano.js';
 import { initVoiceBird, stopVoiceBird } from './section-voicebird.js';
 import { initPullup, stopPullup } from './section-pullup.js';
@@ -22,6 +23,7 @@ const sectionConfig = {
     pullup:       { title: 'Pull-up Coach',         init: initPullup,         stop: stopPullup },
     donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
     antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },
+    vozsenias:    { title: 'Voz a Señas',           init: initVozSenias,      stop: stopVozSenias, noCamera: true },
 };
 
 initHomeScene();
@@ -60,12 +62,14 @@ window.showSection = async function(sectionId) {
         c.getContext('2d').fillStyle = '#000';
         c.getContext('2d').fillRect(0, 0, 640, 480);
 
-        await startCamera();
-        await showIntro(sectionId);
-        const overlay = document.getElementById('loading-overlay');
-        overlay.classList.remove('hidden');
-        await waitForPerson(video);
-        overlay.classList.add('hidden');
+        if (!config.noCamera) {
+            await startCamera();
+            await showIntro(sectionId);
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.remove('hidden');
+            await waitForPerson(video);
+            overlay.classList.add('hidden');
+        }
         await config.init();
     } catch (err) {
         console.error('Error al iniciar sección:', err);
