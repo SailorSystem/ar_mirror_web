@@ -20,8 +20,8 @@ let dataArray = null;
 let smoothPitch = 0;
 let pitchHistory = [];
 let calibrated = false;
-let pitchMin = 200;
-let pitchMax = 400;
+let pitchMin = 180;
+let pitchMax = 350;
 let calibrateTimer = 0;
 const CALIBRATE_DURATION = 2000;
 
@@ -47,33 +47,22 @@ function stopMic() {
 }
 
 function detectPitch(buffer, sampleRate) {
-  const minFreq = 75;
-  const maxFreq = 900;
+  const minFreq = 75, maxFreq = 900;
   const minOffset = Math.floor(sampleRate / maxFreq);
   const maxOffset = Math.floor(sampleRate / minFreq);
+  let bestOffset = minOffset, bestDiff = Infinity;
 
-  let bestOffset = minOffset;
-  let bestDiff = Infinity;
-
-  for (let offset = minOffset; offset <= maxOffset; offset++) {
+  for (let off = minOffset; off <= maxOffset; off++) {
     let diff = 0;
-    for (let i = 0; i < maxOffset; i++) {
-      diff += Math.abs(buffer[i] - buffer[i + offset]);
-    }
-    const avgDiff = diff / maxOffset;
-    if (avgDiff < bestDiff) {
-      bestDiff = avgDiff;
-      bestOffset = offset;
-    }
+    for (let i = 0; i < maxOffset; i++) diff += Math.abs(buffer[i] - buffer[i + off]);
+    const avg = diff / maxOffset;
+    if (avg < bestDiff) { bestDiff = avg; bestOffset = off; }
   }
 
   let rms = 0;
   for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
   rms = Math.sqrt(rms / buffer.length);
-
-  if (rms < 0.018) return -1;
-  if (bestDiff > 0.35) return -1;
-
+  if (rms < 0.018 || bestDiff > 0.35) return -1;
   return sampleRate / bestOffset;
 }
 
@@ -88,10 +77,7 @@ export async function initVoiceBird() {
   }
 
   document.getElementById("restart-btn").onclick = () => {
-    if (isGameOver) {
-      resetGame();
-      animate();
-    }
+    if (isGameOver) { resetGame(); animate(); }
   };
 
   resetGame();
@@ -100,14 +86,10 @@ export async function initVoiceBird() {
 }
 
 function resetGame() {
-  score = 0;
-  pipes.length = 0;
-  frameCount = 0;
-  bird.y = 300;
+  score = 0; pipes.length = 0; frameCount = 0; bird.y = 300;
   isGameOver = false;
-  pitchHistory = [];
-  calibrated = false;
-  calibrateTimer = 0;
+  pitchHistory = []; calibrated = false; calibrateTimer = 0;
+  smoothPitch = 0;
   document.getElementById("game-over-screen").classList.add("hidden");
 }
 
@@ -124,8 +106,7 @@ function animate() {
   if (video.readyState === 4) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const W = canvas.width;
-    const H = canvas.height;
+    const W = canvas.width, H = canvas.height;
 
     ctx.clearRect(0, 0, W, H);
 
@@ -135,115 +116,92 @@ function animate() {
 
       if (pitch > 0) {
         smoothPitch += (pitch - smoothPitch) * 0.35;
-
         if (!calibrated) {
           pitchHistory.push(smoothPitch);
           calibrateTimer += 16;
           if (calibrateTimer >= CALIBRATE_DURATION && pitchHistory.length > 10) {
-            pitchMin = Math.min(...pitchHistory);
-            pitchMax = Math.max(...pitchHistory);
-            const range = pitchMax - pitchMin;
-            pitchMin -= range * 0.15;
-            pitchMax += range * 0.15;
+            let mn = Infinity, mx = -Infinity;
+            pitchHistory.forEach(v => { if (v < mn) mn = v; if (v > mx) mx = v; });
+            const range = Math.max(mx - mn, 40);
+            pitchMin = mn - range * 0.25;
+            pitchMax = mx + range * 0.25;
             calibrated = true;
           }
         }
       }
 
+      // Igual que Flappy Nose: smoothing factor 0.25, rango completo
       if (calibrated && smoothPitch > 0) {
         let t = (smoothPitch - pitchMin) / (pitchMax - pitchMin);
         t = Math.max(0, Math.min(1, t));
-        const targetY = H * 0.12 + (1 - t) * (H * 0.60);
-        bird.y += (targetY - bird.y) * 0.28;
+        // Rango completo: desde casi el tope hasta casi el piso
+        const targetY = 10 + (1 - t) * (H - 60);
+        bird.y += (targetY - bird.y) * 0.25;
       } else if (!calibrated) {
-        bird.y += 1.0;
+        bird.y += 0.8;
       } else {
-        bird.y += 2.0;
+        bird.y += 1.8;
       }
 
-      bird.y = Math.max(15, Math.min(H - 90, bird.y));
+      bird.y = Math.max(5, Math.min(H - 45, bird.y));
 
+      // Waveform decorativa
       ctx.save();
-      ctx.globalAlpha = 0.10;
+      ctx.globalAlpha = 0.08;
       for (let i = 0; i < dataArray.length; i += 4) {
         const x = (i / dataArray.length) * W;
-        const amp = (dataArray[i] + 1) * 0.5;
         ctx.fillStyle = "#3CC3E6";
-        ctx.fillRect(x, H - 18 - amp * 14, 2, amp * 14);
+        ctx.fillRect(x, H - 14 - (dataArray[i] + 1) * 10, 2, (dataArray[i] + 1) * 10);
       }
       ctx.restore();
 
+      // Indicador de tono
       if (calibrated) {
-        const barX = W - 28;
-        const barH = H * 0.55;
-        const barY = H * 0.12;
-        const pitchNorm = (smoothPitch - pitchMin) / (pitchMax - pitchMin);
-        const indicatorY = barY + (1 - Math.max(0, Math.min(1, pitchNorm))) * barH;
+        const by = H * 0.08, bh = H * 0.60, bx = W - 26;
+        const norm = Math.max(0, Math.min(1, (smoothPitch - pitchMin) / (pitchMax - pitchMin)));
+        const iy = by + (1 - norm) * bh;
 
-        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillStyle = "rgba(255,255,255,0.04)";
         ctx.beginPath();
-        ctx.roundRect(barX, barY, 10, barH, 5);
+        ctx.roundRect(bx, by, 8, bh, 4);
         ctx.fill();
 
-        const grad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
-        grad.addColorStop(0, "#3CC3E6");
-        grad.addColorStop(0.5, "#ffd166");
-        grad.addColorStop(1, "#ff6b6b");
-        ctx.fillStyle = grad;
+        const g = ctx.createLinearGradient(bx, by, bx, by + bh);
+        g.addColorStop(0, "#3CC3E6"); g.addColorStop(0.5, "#ffd166"); g.addColorStop(1, "#ff6b6b");
+        ctx.fillStyle = g;
         ctx.shadowColor = "#ffd166";
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.roundRect(barX - 1, indicatorY - 4, 12, 8, 4);
+        ctx.roundRect(bx - 1, iy - 3, 10, 6, 3);
         ctx.fill();
         ctx.shadowBlur = 0;
-
-        ctx.font = "8px 'Orbitron', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "rgba(255,255,255,0.4)";
-        ctx.fillText("TONO", barX + 5, barY - 6);
       }
     } else {
-      bird.y += 1.0;
+      bird.y += 0.8;
     }
 
-    // Tuberías con aparición gradual
+    // Tuberías con fade-in
     if (frameCount % 100 === 0) {
-      const minH = 50;
-      const maxH = H - pipeSettings.gap - minH - 50;
-      const randomY = Math.floor(Math.random() * (maxH - minH + 1)) + minH;
-      pipes.push({
-        x: 0 - pipeSettings.width,
-        y: randomY,
-        passed: false,
-        fadeIn: 0,
-      });
+      const minH = 50, maxH = H - pipeSettings.gap - minH - 50;
+      pipes.push({ x: 0 - pipeSettings.width, y: Math.floor(Math.random() * (maxH - minH + 1)) + minH, passed: false, fade: 0 });
     }
 
     for (let i = pipes.length - 1; i >= 0; i--) {
       const p = pipes[i];
       p.x += pipeSettings.speed;
-      if (p.fadeIn < 1) p.fadeIn = Math.min(1, p.fadeIn + 0.04);
+      if (p.fade < 1) p.fade = Math.min(1, p.fade + 0.04);
 
-      ctx.globalAlpha = p.fadeIn;
+      ctx.globalAlpha = p.fade;
       ctx.save();
       ctx.translate(p.x + pipeSettings.width / 2, p.y);
       ctx.scale(1, -1);
       ctx.drawImage(pipeImg, -pipeSettings.width / 2, 0, pipeSettings.width, p.y);
       ctx.restore();
-
       ctx.drawImage(pipeImg, p.x, p.y + pipeSettings.gap, pipeSettings.width, H - (p.y + pipeSettings.gap));
       ctx.globalAlpha = 1;
 
-      if (checkCollision(p, H)) {
-        showGameOver();
-        return;
-      }
-
-      if (!p.passed && p.x > bird.x) {
-        score++;
-        p.passed = true;
-      }
-
+      if (checkCollision(p, H)) { showGameOver(); return; }
+      if (!p.passed && p.x > bird.x) { score++; p.passed = true; }
       if (p.x > W) pipes.splice(i, 1);
     }
 
@@ -255,6 +213,7 @@ function animate() {
     ctx.drawImage(bird.img, -bird.w / 2, -bird.h / 2, bird.w, bird.h);
     ctx.restore();
 
+    // Score con mirror
     ctx.save();
     ctx.scale(-1, 1);
     ctx.translate(-W, 0);
@@ -269,14 +228,14 @@ function animate() {
     if (!calibrated) {
       ctx.save();
       ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(0, H / 2 - 30, W, 60);
+      ctx.fillRect(0, H/2-26, W, 52);
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 22px 'Orbitron', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.shadowColor = "#ffd166";
       ctx.shadowBlur = 16;
-      ctx.fillText("🎤 Haz sonido para calibrar…", W / 2, H / 2);
+      ctx.fillText("🎤 Haz sonido fuerte y suave para calibrar…", W/2, H/2);
       ctx.restore();
     }
 
@@ -287,16 +246,13 @@ function animate() {
 }
 
 function checkCollision(p, H) {
-  const hitbox = 10;
-  const bL = bird.x - bird.w / 2 + hitbox;
-  const bR = bird.x + bird.w / 2 - hitbox;
-  const bT = bird.y - bird.h / 2 + hitbox;
-  const bB = bird.y + bird.h / 2 - hitbox;
-
-  if (bR > p.x && bL < p.x + pipeSettings.width) {
-    if (bT < p.y || bB > p.y + pipeSettings.gap) return true;
+  const h = 10;
+  const l = bird.x - bird.w/2 + h, r = bird.x + bird.w/2 - h;
+  const t = bird.y - bird.h/2 + h, b = bird.y + bird.h/2 - h;
+  if (r > p.x && l < p.x + pipeSettings.width) {
+    if (t < p.y || b > p.y + pipeSettings.gap) return true;
   }
-  return bB > H - 40;
+  return b > H - 40;
 }
 
 export function stopVoiceBird() {
