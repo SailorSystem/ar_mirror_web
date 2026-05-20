@@ -3,6 +3,9 @@ let listening = false;
 let container = null;
 let fullTranscript = '';
 let currentInterim = '';
+let videoQueue = [];
+let isPlaying = false;
+let lastFinalText = '';
 
 const GESTURE_WORDS = {
     'ABURRIDO':'ABURRIDO','ABUELO':'ABUELO','ALUMNO':'ALUMNO',
@@ -57,11 +60,14 @@ function createUI() {
             </div>
             <button class="vs-clear-btn" id="vs-clear-btn">Limpiar</button>
         </div>
-        <div class="vs-transcript" id="vs-transcript">
-            <span class="vs-placeholder">Habla al micrófono para comenzar...</span>
+        <div class="vs-video-player" id="vs-video-player">
+            <span class="vs-video-placeholder">Señas con movimiento</span>
         </div>
         <div class="vs-signs-area" id="vs-signs-area">
             <div class="vs-signs-scroll" id="vs-signs-scroll"></div>
+        </div>
+        <div class="vs-transcript" id="vs-transcript">
+            <span class="vs-placeholder">Habla al micrófono para comenzar...</span>
         </div>
     `;
 
@@ -70,8 +76,12 @@ function createUI() {
     document.getElementById('vs-clear-btn').onclick = () => {
         fullTranscript = '';
         currentInterim = '';
+        lastFinalText = '';
+        videoQueue = [];
+        isPlaying = false;
         document.getElementById('vs-transcript').innerHTML = '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
         document.getElementById('vs-signs-scroll').innerHTML = '';
+        document.getElementById('vs-video-player').innerHTML = '<span class="vs-video-placeholder">Señas con movimiento</span>';
     };
 }
 
@@ -90,15 +100,22 @@ function startSpeechRecognition() {
 
     recognition.onresult = (event) => {
         let interim = '';
-        let finalAdded = false;
+        let newFinalParts = [];
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
             const result = event.results[i];
             if (result.isFinal) {
-                fullTranscript += (fullTranscript ? ' ' : '') + result[0].transcript.trim();
-                finalAdded = true;
+                newFinalParts.push(result[0].transcript.trim());
             } else {
                 interim += result[0].transcript;
+            }
+        }
+
+        if (newFinalParts.length > 0) {
+            let newText = newFinalParts.join(' ').trim();
+            if (newText !== lastFinalText && !fullTranscript.includes(newText)) {
+                fullTranscript += (fullTranscript ? ' ' : '') + newText;
+                lastFinalText = newText;
             }
         }
 
@@ -139,6 +156,31 @@ function updateTranscript() {
     el.innerHTML = displayText || '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
 }
 
+function queueVideo(path) {
+    if (videoQueue.length > 0 && videoQueue[videoQueue.length - 1] === path) return;
+    videoQueue.push(path);
+    if (!isPlaying) playNextVideo();
+}
+
+function playNextVideo() {
+    if (videoQueue.length === 0) {
+        isPlaying = false;
+        return;
+    }
+    isPlaying = true;
+    const path = videoQueue.shift();
+    const player = document.getElementById('vs-video-player');
+    player.innerHTML = `<video class="vs-player-video" src="${path}" autoplay playsinline></video>`;
+    const video = player.querySelector('video');
+    video.onended = () => {
+        video.onended = null;
+        playNextVideo();
+    };
+    video.onerror = () => {
+        playNextVideo();
+    };
+}
+
 function updateSigns() {
     const scrollEl = document.getElementById('vs-signs-scroll');
     if (!scrollEl) return;
@@ -155,14 +197,16 @@ function updateSigns() {
         const norm = normalizeWord(word);
         const displayWord = word.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ]/g, '');
         if (!norm) return '';
+        const isLast = idx === words.length - 1;
+        const cls = isLast ? ' vs-sign-card-new' : '';
 
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
             const videoPath = `assets/LSEC/gestos/${gestureFile}.mp4`;
             return `
-                <div class="vs-sign-card vs-sign-card-video" data-index="${idx}">
+                <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
                     <span class="vs-sign-label">${displayWord}</span>
-                    <video class="vs-sign-video" src="${videoPath}" autoplay loop muted playsinline></video>
+                    <span class="vs-sign-thumb">▶</span>
                 </div>
             `;
         }
@@ -170,14 +214,14 @@ function updateSigns() {
         if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
             if (hasLetterImage(norm)) {
                 return `
-                    <div class="vs-sign-card vs-sign-card-img" data-index="${idx}">
+                    <div class="vs-sign-card vs-sign-card-img${cls}" data-index="${idx}">
                         <span class="vs-sign-label">${norm}</span>
                         <img class="vs-sign-img" src="assets/LSEC/abecedario/${norm}.jpg" alt="${norm}">
                     </div>
                 `;
             } else {
                 return `
-                    <div class="vs-sign-card vs-sign-card-video" data-index="${idx}">
+                    <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
                         <span class="vs-sign-label">${norm}</span>
                         <video class="vs-sign-video" src="assets/LSEC/abecedario/${norm}.mp4" autoplay loop muted playsinline></video>
                     </div>
@@ -186,7 +230,7 @@ function updateSigns() {
         }
 
         return `
-            <div class="vs-sign-card vs-sign-card-text" data-index="${idx}">
+            <div class="vs-sign-card vs-sign-card-text${cls}" data-index="${idx}">
                 <span class="vs-sign-label">${displayWord}</span>
                 <span class="vs-text-badge">${displayWord}</span>
             </div>
@@ -194,6 +238,16 @@ function updateSigns() {
     }).join('');
 
     scrollEl.scrollLeft = scrollEl.scrollWidth;
+
+    const lastWord = words[words.length - 1];
+    if (lastWord) {
+        const norm = normalizeWord(lastWord);
+        const gestureFile = getGestureFilename(norm);
+        if (gestureFile) {
+            const path = `assets/LSEC/gestos/${gestureFile}.mp4`;
+            queueVideo(path);
+        }
+    }
 }
 
 export function stopVozSenias() {
