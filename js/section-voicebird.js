@@ -4,9 +4,9 @@ let canvas, ctx;
 let frameCount = 0;
 let score = 0;
 
-const bird = { x: 100, y: 300, w: 45, h: 35, img: new Image() };
+const bird = { x: 380, y: 300, w: 45, h: 35, img: new Image() };
 const pipes = [];
-const pipeSettings = { width: 60, gap: 190, speed: 3.5 };
+const pipeSettings = { width: 60, gap: 190, speed: 2.5 };
 
 bird.img.src = "assets/textures/bluebird-upflap.png";
 const pipeImg = new Image(); pipeImg.src = "assets/textures/pipe-green.png";
@@ -27,6 +27,7 @@ const CALIBRATE_DURATION = 2000;
 
 async function startMic() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
   micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   source = audioCtx.createMediaStreamSource(micStream);
   analyser = audioCtx.createAnalyser();
@@ -181,7 +182,7 @@ function animate() {
     }
 
     // Tuberías con fade-in
-    if (frameCount % 100 === 0) {
+    if (frameCount % 120 === 0) {
       const minH = 50, maxH = H - pipeSettings.gap - minH - 50;
       pipes.push({ x: 0 - pipeSettings.width, y: Math.floor(Math.random() * (maxH - minH + 1)) + minH, passed: false, fade: 0 });
     }
