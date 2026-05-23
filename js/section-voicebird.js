@@ -4,7 +4,7 @@ let canvas, ctx;
 let frameCount = 0;
 let score = 0;
 
-const bird = { x: 380, y: 300, w: 45, h: 35, img: new Image() };
+const bird = { x: 480, y: 300, w: 45, h: 35, img: new Image() };
 const pipes = [];
 const pipeSettings = { width: 60, gap: 190, speed: 2.5 };
 
@@ -25,15 +25,22 @@ let pitchMax = 350;
 let calibrateTimer = 0;
 const CALIBRATE_DURATION = 2000;
 
+let micActive = false;
+
 async function startMic() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  try {
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+  } catch (e) {
+    console.warn('AudioContext resume falló:', e);
+  }
   micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   source = audioCtx.createMediaStreamSource(micStream);
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
   source.connect(analyser);
   dataArray = new Float32Array(analyser.fftSize);
+  micActive = true;
 }
 
 function stopMic() {
@@ -63,7 +70,7 @@ function detectPitch(buffer, sampleRate) {
   let rms = 0;
   for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
   rms = Math.sqrt(rms / buffer.length);
-  if (rms < 0.018 || bestDiff > 0.35) return -1;
+  if (rms < 0.008 || bestDiff > 0.35) return -1;
   return sampleRate / bestOffset;
 }
 
@@ -229,14 +236,18 @@ function animate() {
     if (!calibrated) {
       ctx.save();
       ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(0, H/2-26, W, 52);
+      ctx.fillRect(0, H/2-30, W, 60);
       ctx.fillStyle = "#ffd166";
       ctx.font = "bold 22px 'Orbitron', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.shadowColor = "#ffd166";
       ctx.shadowBlur = 16;
-      ctx.fillText("🎤 Haz sonido fuerte y suave para calibrar…", W/2, H/2);
+      ctx.fillText("🎤 Haz sonido fuerte y suave para calibrar…", W/2, H/2 - 8);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = smoothPitch > 0 ? "#4ade80" : "#f87171";
+      ctx.font = "bold 16px 'Orbitron', sans-serif";
+      ctx.fillText(smoothPitch > 0 ? "✓ Micrófono activo" : "✗ Sin señal de audio", W/2, H/2 + 18);
       ctx.restore();
     }
 

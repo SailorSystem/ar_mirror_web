@@ -5,7 +5,7 @@ let fullTranscript = '';
 let currentInterim = '';
 let videoQueue = [];
 let isPlaying = false;
-let lastFinalText = '';
+let lastProcessedIndex = -1;
 
 const GESTURE_WORDS = {
     'ABURRIDO':'ABURRIDO','ABUELO':'ABUELO','ALUMNO':'ALUMNO',
@@ -76,7 +76,7 @@ function createUI() {
     document.getElementById('vs-clear-btn').onclick = () => {
         fullTranscript = '';
         currentInterim = '';
-        lastFinalText = '';
+        lastProcessedIndex = -1;
         videoQueue = [];
         isPlaying = false;
         document.getElementById('vs-transcript').innerHTML = '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
@@ -100,23 +100,21 @@ function startSpeechRecognition() {
 
     recognition.onresult = (event) => {
         let interim = '';
-        let newFinalParts = [];
+        let newWords = [];
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        const startIdx = Math.max(event.resultIndex, lastProcessedIndex + 1);
+        for (let i = startIdx; i < event.results.length; i++) {
             const result = event.results[i];
             if (result.isFinal) {
-                newFinalParts.push(result[0].transcript.trim());
+                newWords.push(result[0].transcript.trim());
+                lastProcessedIndex = i;
             } else {
                 interim += result[0].transcript;
             }
         }
 
-        if (newFinalParts.length > 0) {
-            let newText = newFinalParts.join(' ').trim();
-            if (newText !== lastFinalText && !fullTranscript.includes(newText)) {
-                fullTranscript += (fullTranscript ? ' ' : '') + newText;
-                lastFinalText = newText;
-            }
+        if (newWords.length > 0) {
+            fullTranscript += (fullTranscript ? ' ' : '') + newWords.join(' ');
         }
 
         currentInterim = interim;
@@ -202,7 +200,7 @@ function updateSigns() {
 
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
-            const videoPath = `assets/LSEC/gestos/${gestureFile}.mp4`;
+            const videoPath = `assets/LSEC/gestoswebm/${gestureFile}.webm`;
             return `
                 <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
                     <span class="vs-sign-label">${displayWord}</span>
@@ -244,7 +242,7 @@ function updateSigns() {
         const norm = normalizeWord(lastWord);
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
-            const path = `assets/LSEC/gestos/${gestureFile}.mp4`;
+            const path = `assets/LSEC/gestoswebm/${gestureFile}.webm`;
             queueVideo(path);
         }
     }
