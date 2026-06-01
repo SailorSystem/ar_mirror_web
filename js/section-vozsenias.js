@@ -83,6 +83,14 @@ function createUI() {
     };
 
     document.getElementById('vs-mic-btn').onclick = toggleMic;
+
+    document.getElementById('vs-signs-scroll').addEventListener('click', (e) => {
+        const card = e.target.closest('.vs-sign-card');
+        if (!card) return;
+        const type = card.dataset.type;
+        const norm = card.dataset.norm;
+        if (type && norm) showInPlayer(type, norm);
+    });
 }
 
 function toggleMic() {
@@ -241,7 +249,7 @@ function updateSigns() {
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
             return `
-                <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
+                <div class="vs-sign-card vs-sign-card-video${cls}" data-type="gesto" data-norm="${gestureFile}" data-index="${idx}">
                     <span class="vs-sign-label">${displayWord}</span>
                     <span class="vs-sign-thumb">▶</span>
                 </div>
@@ -251,14 +259,14 @@ function updateSigns() {
         if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
             if (hasLetterImage(norm)) {
                 return `
-                    <div class="vs-sign-card vs-sign-card-img${cls}" data-index="${idx}">
+                    <div class="vs-sign-card vs-sign-card-img${cls}" data-type="letra-img" data-norm="${norm}" data-index="${idx}">
                         <span class="vs-sign-label">${norm}</span>
                         <img class="vs-sign-img" src="assets/LSEC/abecedario/${norm}.jpg" alt="${norm}">
                     </div>
                 `;
             } else {
                 return `
-                    <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
+                    <div class="vs-sign-card vs-sign-card-video${cls}" data-type="letra-video" data-norm="${norm}" data-index="${idx}">
                         <span class="vs-sign-label">${norm}</span>
                         <video class="vs-sign-video" src="assets/LSEC/abecedario/${norm}.mp4" autoplay loop muted playsinline></video>
                     </div>
