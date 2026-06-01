@@ -72,6 +72,10 @@ const INTRO_TEXT = {
   vozsenias: {
     title: "Voz a Señas",
     desc: "Habla al micrófono y el sistema traduce tu voz a texto y a lengua de señas con imágenes en tiempo real."
+  },
+  bioma: {
+    title: "Bioma AR",
+    desc: "Explora el bosque del Yasuní en 3D. Carga el modelo, gíralo con el mouse y vive la experiencia AR desde tu cámara."
   }
 };
 

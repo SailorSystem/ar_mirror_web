@@ -21,6 +21,7 @@ const CARD_ACCENTS = {
     pullup: '#ff6b6b',
     donkeyfitness: '#ff8f70',
     antigravedad: '#9cf7ff',
+    bioma: '#5dffb4',
 };
 
 export function initHomeScene() {

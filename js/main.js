@@ -7,6 +7,7 @@ import { initVoiceBird, stopVoiceBird } from './section-voicebird.js';
 import { initPullup, stopPullup } from './section-pullup.js';
 import { initDonkeyFitness, stopDonkeyFitness } from './section-donkeyfitness.js';
 import { initAntigravedad, stopAntigravedad } from './section-antigravedad.js';
+import { initBioma, stopBioma } from './section-bioma.js';
 import { bindHomeCardEffects, initHomeScene } from './home-scene.js';
 import { showIntro, waitForPerson, stopPresenceCheck } from './detector.js';
 
@@ -24,6 +25,7 @@ const sectionConfig = {
     donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
     antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },
     vozsenias:    { title: 'Voz a Señas',           init: initVozSenias,      stop: stopVozSenias, noCamera: true },
+    bioma:        { title: 'Bioma AR',              init: initBioma,          stop: stopBioma },
 };
 
 initHomeScene();

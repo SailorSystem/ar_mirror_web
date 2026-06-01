@@ -918,3 +918,84 @@ nav {
     .vs-text-badge { width: 38px; height: 38px; font-size: .5rem; }
     .vs-transcript { font-size: clamp(.9rem, 4vw, 1.4rem); }
 }
+
+/* ─── Bioma AR ──────────────────────────────────────────────── */
+#bioma-canvas {
+    transform: none !important;
+    z-index: 5;
+}
+
+.bioma-fps {
+    position: fixed;
+    top: 80px;
+    right: 16px;
+    z-index: 999;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    color: rgba(60, 195, 230, 0.85);
+    background: rgba(5, 8, 22, 0.65);
+    padding: 5px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(60, 195, 230, 0.15);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+    line-height: 1.4;
+}
+
+.bioma-hint {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(5, 8, 22, 0.55);
+    padding: 7px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.bioma-loading-bar {
+    width: 240px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+    margin: 4px auto 0;
+}
+
+.bioma-loading-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--blue-accent), var(--cyan-bright));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+@media (max-width: 600px) {
+    .bioma-fps {
+        top: 72px;
+        right: 10px;
+        font-size: 0.7rem;
+        padding: 4px 10px;
+    }
+    .bioma-hint {
+        font-size: 0.72rem;
+        padding: 5px 14px;
+        bottom: 18px;
+        white-space: normal;
+        max-width: 90vw;
+    }
+    .bioma-loading-bar {
+        width: 180px;
+    }
+}
