@@ -618,6 +618,41 @@ nav {
     color: #9eeaff;
 }
 
+.vs-header-btns {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.vs-mic-btn {
+    padding: 8px 14px;
+    border: 1px solid rgba(60,195,230,.3);
+    border-radius: 12px;
+    background: rgba(60,195,230,.12);
+    color: rgba(255,255,255,.8);
+    font-family: 'Inter', sans-serif;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+}
+
+.vs-mic-btn:hover {
+    background: rgba(60,195,230,.22);
+    border-color: rgba(60,195,230,.5);
+    color: #fff;
+}
+
+.vs-mic-off {
+    border-color: rgba(255,107,107,.3) !important;
+    background: rgba(255,107,107,.12) !important;
+    color: rgba(255,107,107,.8) !important;
+}
+
+.vs-mic-off:hover {
+    background: rgba(255,107,107,.22) !important;
+    border-color: rgba(255,107,107,.5) !important;
+}
+
 .vs-clear-btn {
     padding: 8px 18px;
     border: 1px solid rgba(255,255,255,.15);

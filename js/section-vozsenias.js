@@ -1,5 +1,6 @@
 let recognition = null;
 let listening = false;
+let micEnabled = true;
 let container = null;
 let fullTranscript = '';
 let currentInterim = '';
@@ -53,7 +54,10 @@ function createUI() {
                 <span class="vs-dot"></span>
                 <span class="vs-label">Escuchando</span>
             </div>
-            <button class="vs-clear-btn" id="vs-clear-btn">Limpiar</button>
+            <div class="vs-header-btns">
+                <button class="vs-mic-btn" id="vs-mic-btn">🔊 Mic</button>
+                <button class="vs-clear-btn" id="vs-clear-btn">Limpiar</button>
+            </div>
         </div>
         <div class="vs-video-player" id="vs-video-player">
             <span class="vs-video-placeholder">Señas con movimiento</span>
@@ -77,9 +81,35 @@ function createUI() {
         document.getElementById('vs-signs-scroll').innerHTML = '';
         document.getElementById('vs-video-player').innerHTML = '<span class="vs-video-placeholder">Señas con movimiento</span>';
     };
+
+    document.getElementById('vs-mic-btn').onclick = toggleMic;
+}
+
+function toggleMic() {
+    const btn = document.getElementById('vs-mic-btn');
+    micEnabled = !micEnabled;
+    if (micEnabled) {
+        btn.textContent = '🔊 Mic';
+        btn.classList.remove('vs-mic-off');
+        startSpeechRecognition();
+    } else {
+        btn.textContent = '🔇 Mic';
+        btn.classList.add('vs-mic-off');
+        stopSpeechRecognition();
+    }
+}
+
+function stopSpeechRecognition() {
+    listening = false;
+    if (recognition) {
+        try { recognition.stop(); } catch {}
+        recognition = null;
+    }
+    document.getElementById('vs-indicator')?.classList.remove('vs-active');
 }
 
 function startSpeechRecognition() {
+    if (!micEnabled) return;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         document.getElementById('vs-transcript').innerHTML =
@@ -94,19 +124,19 @@ function startSpeechRecognition() {
 
     recognition.onresult = (event) => {
         let interim = '';
-        let apiFinal = '';
+        let lastFinal = '';
 
         for (let i = 0; i < event.results.length; i++) {
             const r = event.results[i];
             if (r.isFinal) {
-                apiFinal += (apiFinal ? ' ' : '') + r[0].transcript.trim();
+                lastFinal = r[0].transcript.trim();
             } else {
                 interim += r[0].transcript;
             }
         }
 
-        if (apiFinal) {
-            fullTranscript = mergeTranscripts(fullTranscript, apiFinal);
+        if (lastFinal) {
+            fullTranscript = mergeTranscripts(fullTranscript, lastFinal);
         }
 
         currentInterim = interim;
@@ -136,7 +166,7 @@ function startSpeechRecognition() {
     };
 
     recognition.onend = () => {
-        if (listening) {
+        if (listening && micEnabled) {
             try { recognition.start(); } catch {}
         }
     };
@@ -161,40 +191,32 @@ function updateTranscript() {
     el.innerHTML = displayText || '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
 }
 
-function getGifPath(gestureFile) {
-    return `assets/LSEC/gestosgif/${gestureFile}.gif`;
-}
-
-function queueVideo(path) {
-    if (videoQueue.length > 0 && videoQueue[videoQueue.length - 1] === path) return;
-    videoQueue.push(path);
-    if (!isPlaying) playNextVideo();
-}
-
-function playNextVideo() {
-    if (videoQueue.length === 0) {
-        isPlaying = false;
-        return;
-    }
-    isPlaying = true;
-    const path = videoQueue.shift();
-    const gestureFile = path.split('/').pop().replace('.webm', '');
+function showInPlayer(type, file) {
     const player = document.getElementById('vs-video-player');
-    player.innerHTML = `
-        <div class="vs-player-content">
-            <img class="vs-player-gesture-img" src="${getGifPath(gestureFile)}" alt="${gestureFile}" onerror="this.style.display='none'" />
-            <video class="vs-player-video" src="${path}" autoplay playsinline></video>
-            <span class="vs-player-label">${gestureFile}</span>
-        </div>
-    `;
-    const video = player.querySelector('video');
-    video.onended = () => {
-        video.onended = null;
-        playNextVideo();
-    };
-    video.onerror = () => {
-        playNextVideo();
-    };
+    if (type === 'gesto') {
+        const gestureFile = file;
+        player.innerHTML = `
+            <div class="vs-player-content">
+                <img class="vs-player-gesture-img" src="assets/LSEC/gestosgif/${gestureFile}.gif" alt="${gestureFile}" onerror="this.style.display='none'" />
+                <video class="vs-player-video" src="assets/LSEC/gestoswebm/${gestureFile}.webm" autoplay playsinline></video>
+                <span class="vs-player-label">${gestureFile}</span>
+            </div>
+        `;
+    } else if (type === 'letra-img') {
+        player.innerHTML = `
+            <div class="vs-player-content">
+                <img class="vs-player-gesture-img" src="assets/LSEC/abecedario/${file}.jpg" alt="${file}" />
+                <span class="vs-player-label">${file}</span>
+            </div>
+        `;
+    } else if (type === 'letra-video') {
+        player.innerHTML = `
+            <div class="vs-player-content">
+                <video class="vs-player-video" src="assets/LSEC/abecedario/${file}.mp4" autoplay loop muted playsinline></video>
+                <span class="vs-player-label">${file}</span>
+            </div>
+        `;
+    }
 }
 
 function updateSigns() {
@@ -218,7 +240,6 @@ function updateSigns() {
 
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
-            const videoPath = `assets/LSEC/gestoswebm/${gestureFile}.webm`;
             return `
                 <div class="vs-sign-card vs-sign-card-video${cls}" data-index="${idx}">
                     <span class="vs-sign-label">${displayWord}</span>
@@ -260,14 +281,20 @@ function updateSigns() {
         const norm = normalizeWord(lastWord);
         const gestureFile = getGestureFilename(norm);
         if (gestureFile) {
-            const path = `assets/LSEC/gestoswebm/${gestureFile}.webm`;
-            queueVideo(path);
+            showInPlayer('gesto', gestureFile);
+        } else if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
+            if (hasLetterImage(norm)) {
+                showInPlayer('letra-img', norm);
+            } else {
+                showInPlayer('letra-video', norm);
+            }
         }
     }
 }
 
 export function stopVozSenias() {
     listening = false;
+    micEnabled = false;
     if (recognition) {
         try { recognition.stop(); } catch {}
         recognition = null;
