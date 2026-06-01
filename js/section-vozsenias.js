@@ -5,7 +5,6 @@ let fullTranscript = '';
 let currentInterim = '';
 let videoQueue = [];
 let isPlaying = false;
-let lastProcessedIndex = -1;
 
 const GESTURE_WORDS = {
     'ABURRIDO':'ABURRIDO','ABUELO':'ABUELO','ALUMNO':'ALUMNO',
@@ -33,10 +32,6 @@ function getGestureFilename(word) {
 
 function hasLetterImage(letter) {
     return !LETTER_VIDEOS.includes(letter);
-}
-
-function normalizeTextForDisplay(text) {
-    return text.trim();
 }
 
 export async function initVozSenias() {
@@ -76,7 +71,6 @@ function createUI() {
     document.getElementById('vs-clear-btn').onclick = () => {
         fullTranscript = '';
         currentInterim = '';
-        lastProcessedIndex = -1;
         videoQueue = [];
         isPlaying = false;
         document.getElementById('vs-transcript').innerHTML = '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
@@ -100,27 +94,40 @@ function startSpeechRecognition() {
 
     recognition.onresult = (event) => {
         let interim = '';
-        let newWords = [];
+        let apiFinal = '';
 
-        const startIdx = Math.max(event.resultIndex, lastProcessedIndex + 1);
-        for (let i = startIdx; i < event.results.length; i++) {
-            const result = event.results[i];
-            if (result.isFinal) {
-                newWords.push(result[0].transcript.trim());
-                lastProcessedIndex = i;
+        for (let i = 0; i < event.results.length; i++) {
+            const r = event.results[i];
+            if (r.isFinal) {
+                apiFinal += (apiFinal ? ' ' : '') + r[0].transcript.trim();
             } else {
-                interim += result[0].transcript;
+                interim += r[0].transcript;
             }
         }
 
-        if (newWords.length > 0) {
-            fullTranscript += (fullTranscript ? ' ' : '') + newWords.join(' ');
+        if (apiFinal) {
+            fullTranscript = mergeTranscripts(fullTranscript, apiFinal);
         }
 
         currentInterim = interim;
         updateTranscript();
         updateSigns();
     };
+
+    function mergeTranscripts(existing, incoming) {
+        if (!existing) return incoming;
+        const ew = existing.split(/\s+/);
+        const iw = incoming.split(/\s+/);
+        let overlap = 0;
+        for (let len = Math.min(ew.length, iw.length); len > 0; len--) {
+            if (ew.slice(-len).join(' ') === iw.slice(0, len).join(' ')) {
+                overlap = len;
+                break;
+            }
+        }
+        const delta = iw.slice(overlap);
+        return delta.length === 0 ? existing : existing + ' ' + delta.join(' ');
+    }
 
     recognition.onerror = (event) => {
         if (event.error === 'no-speech') return;
@@ -154,6 +161,10 @@ function updateTranscript() {
     el.innerHTML = displayText || '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
 }
 
+function getGifPath(gestureFile) {
+    return `assets/LSEC/gestosgif/${gestureFile}.gif`;
+}
+
 function queueVideo(path) {
     if (videoQueue.length > 0 && videoQueue[videoQueue.length - 1] === path) return;
     videoQueue.push(path);
@@ -167,8 +178,15 @@ function playNextVideo() {
     }
     isPlaying = true;
     const path = videoQueue.shift();
+    const gestureFile = path.split('/').pop().replace('.webm', '');
     const player = document.getElementById('vs-video-player');
-    player.innerHTML = `<video class="vs-player-video" src="${path}" autoplay playsinline></video>`;
+    player.innerHTML = `
+        <div class="vs-player-content">
+            <img class="vs-player-gesture-img" src="${getGifPath(gestureFile)}" alt="${gestureFile}" onerror="this.style.display='none'" />
+            <video class="vs-player-video" src="${path}" autoplay playsinline></video>
+            <span class="vs-player-label">${gestureFile}</span>
+        </div>
+    `;
     const video = player.querySelector('video');
     video.onended = () => {
         video.onended = null;
