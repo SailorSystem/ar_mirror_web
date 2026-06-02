@@ -7,10 +7,21 @@ let running = false;
 let loadingBarFill = null;
 let lastInteraction = 0;
 let fps = 0, frameCount = 0, fpsTimer = 0;
+let xrSession = null;
+let arSupported = false;
+let inAR = false;
+
+async function checkARSupport() {
+  if (!navigator.xr) return false;
+  try {
+    return await navigator.xr.isSessionSupported('immersive-ar');
+  } catch {
+    return false;
+  }
+}
 
 export async function initBioma() {
   const container = document.querySelector('.canvas-container');
-  const video = document.getElementById('webcam');
 
   THREE = await import('https://unpkg.com/three@0.164.1/build/three.module.js');
   const { GLTFLoader } = await import('https://unpkg.com/three@0.164.1/examples/jsm/loaders/GLTFLoader.js');
@@ -129,7 +140,6 @@ export async function initBioma() {
     }
 
     updateStatus('✅ Anaconda cargada', 100);
-
     await new Promise(r => setTimeout(r, 800));
 
   } catch (err) {
@@ -141,6 +151,9 @@ export async function initBioma() {
   overlay.classList.add('hidden');
 
   showHint();
+
+  arSupported = await checkARSupport();
+  if (arSupported) showARButton();
 
   window.addEventListener('resize', onResize);
 
@@ -171,6 +184,104 @@ function animate() {
 
   controls.update();
   renderer.render(scene, camera);
+}
+
+function showARButton() {
+  if (document.getElementById('bioma-ar-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'bioma-ar-btn';
+  btn.className = 'bioma-ar-btn';
+  btn.textContent = '🎥 Ver en AR';
+  btn.onclick = enterAR;
+  document.body.appendChild(btn);
+}
+
+function hideARButton() {
+  const btn = document.getElementById('bioma-ar-btn');
+  if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+}
+
+async function enterAR() {
+  if (inAR || !arSupported) return;
+
+  try {
+    inAR = true;
+    running = false;
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+
+    controls.enabled = false;
+    hideHUD();
+    hideARButton();
+
+    model.position.set(0, 0, -2.5);
+
+    renderer.xr.enabled = true;
+
+    xrSession = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local-floor']
+    });
+
+    xrSession.addEventListener('end', onARSessionEnd);
+    await renderer.xr.setSession(xrSession);
+
+    renderer.setAnimationLoop(arAnimate);
+
+  } catch (err) {
+    console.error('Error al iniciar AR:', err);
+    inAR = false;
+    running = true;
+    controls.enabled = true;
+    showHUD();
+    showARButton();
+    animate();
+  }
+}
+
+function arAnimate() {
+  if (mixer) mixer.update(0.016);
+  renderer.render(scene, camera);
+}
+
+function onARSessionEnd() {
+  exitAR();
+}
+
+function exitAR() {
+  if (!inAR) return;
+  inAR = false;
+
+  renderer.setAnimationLoop(null);
+  renderer.xr.enabled = false;
+
+  if (xrSession) {
+    const session = xrSession;
+    xrSession = null;
+    session.removeEventListener('end', onARSessionEnd);
+    try { session.end(); } catch (_) {}
+  }
+
+  if (model) model.position.set(0, 0, 0);
+
+  controls.enabled = true;
+  showHUD();
+  showARButton();
+
+  running = true;
+  animate();
+}
+
+function hideHUD() {
+  const fpsEl = document.getElementById('bioma-fps');
+  if (fpsEl) fpsEl.style.display = 'none';
+  const hint = document.getElementById('bioma-hint');
+  if (hint) hint.style.display = 'none';
+}
+
+function showHUD() {
+  const fpsEl = document.getElementById('bioma-fps');
+  if (fpsEl) fpsEl.style.display = '';
+  const hint = document.getElementById('bioma-hint');
+  if (hint) hint.style.display = '';
 }
 
 function updateFPS(val) {
@@ -205,13 +316,13 @@ function onResize() {
 }
 
 export function stopBioma() {
+  if (inAR) exitAR();
+
   running = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
 
   if (controls) controls.dispose();
-  if (renderer) {
-    renderer.dispose();
-  }
+  if (renderer) renderer.dispose();
 
   const canvas = document.getElementById('bioma-canvas');
   if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
@@ -225,6 +336,8 @@ export function stopBioma() {
   const bar = document.querySelector('.bioma-loading-bar');
   if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
 
+  hideARButton();
+
   const overlayP = document.querySelector('#loading-overlay p');
   if (overlayP) overlayP.textContent = 'Preparando experiencia…';
 
@@ -233,4 +346,5 @@ export function stopBioma() {
   THREE = null; scene = null; camera = null; renderer = null;
   controls = null; model = null; mixer = null;
   loadingBarFill = null;
+  arSupported = false;
 }

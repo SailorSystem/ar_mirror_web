@@ -981,6 +981,38 @@ nav {
     transition: width 0.3s ease;
 }
 
+.bioma-ar-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    z-index: 999;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(5, 8, 22, 0.7);
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(93, 255, 180, 0.25);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    user-select: none;
+    line-height: 1.4;
+    transition: all 0.25s ease;
+    box-shadow: 0 0 20px rgba(93, 255, 180, 0.1);
+}
+
+.bioma-ar-btn:hover {
+    background: rgba(93, 255, 180, 0.15);
+    border-color: rgba(93, 255, 180, 0.5);
+    box-shadow: 0 0 30px rgba(93, 255, 180, 0.2);
+    transform: scale(1.05);
+}
+
+.bioma-ar-btn:active {
+    transform: scale(0.95);
+}
+
 @media (max-width: 600px) {
     .bioma-fps {
         top: 72px;
@@ -997,5 +1029,11 @@ nav {
     }
     .bioma-loading-bar {
         width: 180px;
+    }
+    .bioma-ar-btn {
+        bottom: 70px;
+        right: 10px;
+        font-size: 0.78rem;
+        padding: 8px 16px;
     }
 }
