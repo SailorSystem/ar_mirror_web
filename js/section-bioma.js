@@ -13,9 +13,14 @@ let inAR = false;
 
 async function checkARSupport() {
   if (!navigator.xr) return false;
+  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (!isMobile) return false;
   try {
-    return await navigator.xr.isSessionSupported('immersive-ar');
-  } catch {
+    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+    console.log('[Bioma] WebXR AR compatible:', supported);
+    return supported;
+  } catch (err) {
+    console.warn('[Bioma] Error detectando AR:', err);
     return false;
   }
 }
@@ -201,6 +206,20 @@ function hideARButton() {
   if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
 }
 
+function showToast(msg, duration = 3500) {
+  let toast = document.getElementById('bioma-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'bioma-toast';
+    toast.className = 'bioma-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.remove('hidden');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.add('hidden'), duration);
+}
+
 async function enterAR() {
   if (inAR || !arSupported) return;
 
@@ -218,7 +237,8 @@ async function enterAR() {
     renderer.xr.enabled = true;
 
     xrSession = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['local-floor']
+      optionalFeatures: ['local-floor', 'dom-overlay'],
+      domOverlay: { root: document.body }
     });
 
     xrSession.addEventListener('end', onARSessionEnd);
@@ -227,12 +247,21 @@ async function enterAR() {
     renderer.setAnimationLoop(arAnimate);
 
   } catch (err) {
-    console.error('Error al iniciar AR:', err);
+    console.error('[Bioma] Error al iniciar AR:', err);
     inAR = false;
+    renderer.xr.enabled = false;
     running = true;
     controls.enabled = true;
+    model.position.set(0, 0, 0);
     showHUD();
     showARButton();
+    if (err.message && err.message.includes('not supported')) {
+      showToast('AR no disponible en este dispositivo. Usa Chrome en Android.');
+    } else if (err.message && err.message.includes('security')) {
+      showToast('AR requiere HTTPS. Sirve la página con HTTPS.');
+    } else {
+      showToast(`AR no disponible: ${err.message || 'error desconocido'}`);
+    }
     animate();
   }
 }

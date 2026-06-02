@@ -1037,3 +1037,38 @@ nav {
         padding: 8px 16px;
     }
 }
+
+.bioma-toast {
+    position: fixed;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    color: #fff;
+    background: rgba(255, 60, 60, 0.85);
+    padding: 10px 22px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 60, 60, 0.3);
+    backdrop-filter: blur(12px);
+    pointer-events: none;
+    user-select: none;
+    text-align: center;
+    max-width: 90vw;
+    line-height: 1.5;
+    transition: opacity 0.35s ease;
+}
+
+.bioma-toast.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    .bioma-toast {
+        top: 76px;
+        font-size: 0.76rem;
+        padding: 8px 16px;
+    }
+}
