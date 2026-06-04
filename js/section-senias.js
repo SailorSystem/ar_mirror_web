@@ -8,6 +8,7 @@ let handLandmarker;
 let running = false;
 let canvas, ctx, drawingUtils;
 let dictionary = null;
+let gestureDict = null;
 
 const lastLetter = { Left:"", Right:"" };
 const letterTs   = { Left:0,  Right:0  };
@@ -17,6 +18,17 @@ const history = { Left:[], Right:[] };
 const HISTORY_SIZE = 10;
 const CONF_THRESHOLD = 0.35;
 let handsSeen = { Left:0, Right:0 };
+
+const handMotion = { Left:[], Right:[] };
+const MOTION_WINDOW = 8;
+
+const gestureVotes = [];
+const GESTURE_WINDOW = 20;
+const GESTURE_VOTE_RATIO = 0.3;
+const GESTURE_CONF_THRESHOLD = 0.3;
+let lastGestureWord = "";
+let lastGestureTs = 0;
+const GESTURE_DEBOUNCE = 500;
 
 export async function initSenias() {
     const vision = await FilesetResolver.forVisionTasks(
@@ -28,6 +40,7 @@ export async function initSenias() {
     });
 
     await loadDictionary();
+    await loadGestureDictionary();
 
     canvas = document.getElementById("output_canvas");
     ctx    = canvas.getContext("2d");
@@ -44,6 +57,17 @@ async function loadDictionary() {
     } catch(e) {
         console.error("Error cargando diccionario:", e);
         dictionary = {};
+    }
+}
+
+async function loadGestureDictionary() {
+    try {
+        const resp = await fetch("assets/LSEC/diccionario_gestos/gestos_landmarks.json");
+        gestureDict = await resp.json();
+        console.log(`Diccionario gestos LSEC cargado: ${Object.keys(gestureDict).length} gestos`);
+    } catch(e) {
+        console.error("Error cargando diccionario gestos:", e);
+        gestureDict = {};
     }
 }
 
@@ -155,6 +179,96 @@ function smoothLetter(key, match) {
     return "·";
 }
 
+function getHandKey(lm, idx, hr) {
+    let lado = hr.handedness?.[idx]?.[0]?.categoryName;
+    if (lado !== "Left" && lado !== "Right") {
+        lado = lm[0].x > 0.5 ? "Left" : "Right";
+    }
+    return lado === "Left" ? "Left" : "Right";
+}
+
+function updateMotion(key, lm) {
+    const pos = { x: lm[0].x, y: lm[0].y, z: lm[0].z };
+    const h = handMotion[key];
+    h.push(pos);
+    if (h.length > MOTION_WINDOW) h.shift();
+}
+
+function getHandMotion(key) {
+    const h = handMotion[key];
+    if (h.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < h.length; i++) {
+        total += Math.hypot(h[i].x - h[i-1].x, h[i].y - h[i-1].y, h[i].z - h[i-1].z);
+    }
+    return total / (h.length - 1);
+}
+
+function matchGestureFrame(lm) {
+    const norm = normalizeLandmarks(lm);
+    if (!norm || !gestureDict) return { word: null, distance: Infinity };
+
+    const liveDists = computePairwiseDistances(norm);
+
+    let bestWord = null;
+    let bestDist = Infinity;
+
+    for (const [word, data] of Object.entries(gestureDict)) {
+        const primary = data.hand_analysis?.primary_hand || "Left";
+        for (const f of data.frames) {
+            const hand = f.hands?.[primary] || f.hand;
+            if (!hand || !hand.detected || !hand.pairwise_distances) continue;
+
+            let sumSq = 0;
+            const dd = hand.pairwise_distances;
+            for (let i = 0; i < liveDists.length; i++) {
+                const d = liveDists[i] - dd[i];
+                sumSq += d * d;
+            }
+            const dist = Math.sqrt(sumSq);
+
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestWord = word;
+            }
+        }
+    }
+
+    const confidence = Math.max(0, Math.min(1, 1 - bestDist / 3.5));
+    return { word: bestWord, distance: bestDist, confidence };
+}
+
+function accumulateGesture() {
+    if (gestureVotes.length < 5) return null;
+
+    const counts = {};
+    let totalConf = 0;
+    for (const v of gestureVotes) {
+        if (v.word) {
+            counts[v.word] = (counts[v.word] || 0) + 1;
+            totalConf += v.confidence;
+        }
+    }
+
+    const avgConf = totalConf / gestureVotes.length;
+    if (avgConf < GESTURE_CONF_THRESHOLD) return null;
+
+    let bestWord = null;
+    let bestCount = 0;
+    for (const [word, count] of Object.entries(counts)) {
+        if (count > bestCount) {
+            bestCount = count;
+            bestWord = word;
+        }
+    }
+
+    if (!bestWord) return null;
+    const ratio = bestCount / gestureVotes.length;
+    if (ratio < GESTURE_VOTE_RATIO) return null;
+
+    return { word: bestWord, confidence: ratio * avgConf };
+}
+
 function render() {
     if (!running) return;
     const video = document.getElementById("webcam");
@@ -167,27 +281,38 @@ function render() {
 
         const seen = { Left:false, Right:false };
         const lines = [];
+        let gestureLm = null;
+        let gestureMotion = 0;
 
         if (hr.landmarks?.length) {
-            hr.landmarks.forEach((lm, idx) => {
+            for (let idx = 0; idx < hr.landmarks.length; idx++) {
+                const lm = hr.landmarks[idx];
+
                 drawingUtils.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, { color:"#00FF88", lineWidth:3 });
                 drawingUtils.drawLandmarks(lm, { color:"#FFF", lineWidth:1, radius:3 });
 
-                let lado = hr.handedness?.[idx]?.[0]?.categoryName;
-                if (lado !== "Left" && lado !== "Right") {
-                    lado = lm[0].x > 0.5 ? "Left" : "Right";
-                }
-                const key = lado === "Left" ? "Left" : "Right";
+                const key = getHandKey(lm, idx, hr);
                 seen[key] = true;
-                handsSeen[key] = performance.now();
+                handsSeen[key] = now;
 
-                const label = lado === "Left" ? "Izquierda" : "Derecha";
+                updateMotion(key, lm);
+
+                const motion = getHandMotion(key);
+                if (motion > gestureMotion) {
+                    gestureMotion = motion;
+                    gestureLm = { lm, key, motion };
+                }
+            }
+
+            for (let idx = 0; idx < hr.landmarks.length; idx++) {
+                const lm = hr.landmarks[idx];
+                const key = getHandKey(lm, idx, hr);
+                const label = key === "Left" ? "Izquierda" : "Derecha";
 
                 const match = findBestMatch(lm);
                 const smoothed = smoothLetter(key, match);
 
-                const ts = now - letterTs[key];
-                if (smoothed !== lastLetter[key] || ts > DEBOUNCE_MS) {
+                if (smoothed !== lastLetter[key] || now - letterTs[key] > DEBOUNCE_MS) {
                     lastLetter[key] = smoothed;
                     letterTs[key]   = now;
                 }
@@ -201,20 +326,41 @@ function render() {
                 lines.push(display);
 
                 if (lastLetter[key] !== "·" && conf > CONF_THRESHOLD) {
-                    drawLetterBadge(lastLetter[key], conf, lado);
+                    drawLetterBadge(lastLetter[key], conf, key);
                 }
-            });
+            }
         }
 
         for (const hand of ["Left", "Right"]) {
             if (!seen[hand] && handsSeen[hand] && now - handsSeen[hand] > 500) {
                 history[hand] = [];
                 lastLetter[hand] = "";
+                handMotion[hand] = [];
                 handsSeen[hand] = 0;
             }
         }
 
-        drawPanel(lines, 120, "#00ff88", "rgba(0,60,20,0.65)", "Alfabeto LSEC");
+        if (gestureLm && gestureMotion > 0.03) {
+            const gmatch = matchGestureFrame(gestureLm.lm);
+            gestureVotes.push(gmatch);
+            if (gestureVotes.length > GESTURE_WINDOW) gestureVotes.shift();
+
+            const gresult = accumulateGesture();
+            if (gresult && now - lastGestureTs > GESTURE_DEBOUNCE) {
+                lastGestureWord = gresult.word;
+                lastGestureTs = now;
+                lines.push(`Gesto: ${gresult.word}`);
+            } else if (gresult && lastGestureWord !== "" && now - lastGestureTs < GESTURE_DEBOUNCE) {
+                lines.push(`Gesto: ${lastGestureWord}`);
+            }
+        } else if (gestureMotion <= 0.03) {
+            const stillCount = gestureVotes.filter(v => v.distance > 2.0).length;
+            if (stillCount > gestureVotes.length * 0.5) {
+                gestureVotes.length = 0;
+            }
+        }
+
+        drawPanel(lines, 120, "#00ff88", "rgba(0,60,20,0.65)", "LSEC — Letras + Gestos");
     }
     requestAnimationFrame(render);
 }
@@ -276,49 +422,6 @@ function drawPanel(lines, yBase, textColor, bgColor, label) {
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.fillText(label, W / 2, yBase + th / 2 + 14);
     ctx.restore();
-}
-
-function orientation(lm) {
-    const wristY   = lm[0].y;
-    const midBaseY = lm[9].y;
-    const wristX   = lm[0].x;
-    const midBaseX = lm[9].x;
-    const palmUp   = (lm[0].z || 0) > (lm[9].z || 0);
-    return {
-        palmUp,
-        wristUp:   wristY < midBaseY,
-        handRight: wristX < midBaseX,
-        angle:     Math.atan2(midBaseY - wristY, midBaseX - wristX),
-    };
-}
-
-function lsecPhrase(lm) {
-    const up   = (t,p) => lm[t].y < lm[p].y;
-    const dist = (a,b) => Math.hypot(lm[a].x - lm[b].x, lm[a].y - lm[b].y);
-    const ori  = orientation(lm);
-    const i = up(8,6), m = up(12,10), r = up(16,14), p = up(20,18);
-
-    if (i && m && r && p && !ori.wristUp && lm[9].y < 0.45) return "HOLA";
-    if (i && m && r && p && ori.handRight && lm[9].y < 0.5) return "ADIOS";
-    if (i && m && r && p && !ori.wristUp && lm[9].y > 0.55) return "GRACIAS";
-    if (!i && !m && !r && !p && dist(4,5) < 0.06 && lm[9].y > 0.5) return "POR FAVOR";
-    if (i && m && r && p && lm[8].y < 0.35 && ori.wristUp) return "BUENOS DIAS";
-    if (!i && !m && !r && !p && lm[9].y > 0.5 && lm[9].y < 0.75) return "SI";
-    if (i && !m && !r && !p && !ori.wristUp) return "NO";
-    if (i && m && r && p && ori.wristUp && lm[9].y > 0.45) return "AYUDA";
-    if (i && m && !r && !p && dist(8,12) < 0.06) return "LENGUA DE SENAS";
-    return null;
-}
-
-function mapGesture(cat) {
-    return {
-        "Thumb_Up":   "BIEN / GRACIAS",
-        "Victory":    "V / 2",
-        "Open_Palm":  "HOLA / B",
-        "Closed_Fist":"A / E / S",
-        "Pointing_Up":"1 / Z",
-        "ILoveYou":   "TE QUIERO / Y",
-    }[cat] || null;
 }
 
 function rrect(ctx, x, y, w, h, r) {
