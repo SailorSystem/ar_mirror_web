@@ -6,6 +6,8 @@ let fullTranscript = '';
 let currentInterim = '';
 let videoQueue = [];
 let isPlaying = false;
+let displayDuration = 3;
+let lastQueuedWordCount = 0;
 
 const GESTURE_WORDS = {
     'ABURRIDO':'ABURRIDO','ABUELO':'ABUELO','ALUMNO':'ALUMNO',
@@ -35,6 +37,16 @@ function hasLetterImage(letter) {
     return !LETTER_VIDEOS.includes(letter);
 }
 
+function getWordMedia(norm) {
+    const gestureFile = getGestureFilename(norm);
+    if (gestureFile) return { type: 'gesto', norm: gestureFile };
+    if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
+        if (hasLetterImage(norm)) return { type: 'letra-img', norm };
+        return { type: 'letra-video', norm };
+    }
+    return null;
+}
+
 export async function initVozSenias() {
     createUI();
     startSpeechRecognition();
@@ -54,6 +66,11 @@ function createUI() {
                 <span class="vs-dot"></span>
                 <span class="vs-label">Escuchando</span>
             </div>
+            <div class="vs-timing-control">
+                <span class="vs-timing-icon">⏱</span>
+                <input type="range" class="vs-timing-slider" id="vs-timing-slider" min="1" max="10" value="3" step="0.5">
+                <span class="vs-timing-value" id="vs-timing-value">3s</span>
+            </div>
             <div class="vs-header-btns">
                 <button class="vs-mic-btn" id="vs-mic-btn">🔊 Mic</button>
                 <button class="vs-clear-btn" id="vs-clear-btn">Limpiar</button>
@@ -72,11 +89,17 @@ function createUI() {
 
     canvasContainer.appendChild(container);
 
+    document.getElementById('vs-timing-slider').addEventListener('input', (e) => {
+        displayDuration = parseFloat(e.target.value);
+        document.getElementById('vs-timing-value').textContent = displayDuration + 's';
+    });
+
     document.getElementById('vs-clear-btn').onclick = () => {
         fullTranscript = '';
         currentInterim = '';
         videoQueue = [];
         isPlaying = false;
+        lastQueuedWordCount = 0;
         document.getElementById('vs-transcript').innerHTML = '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
         document.getElementById('vs-signs-scroll').innerHTML = '';
         document.getElementById('vs-video-player').innerHTML = '<span class="vs-video-placeholder">Señas con movimiento</span>';
@@ -89,7 +112,9 @@ function createUI() {
         if (!card) return;
         const type = card.dataset.type;
         const norm = card.dataset.norm;
-        if (type && norm) showInPlayer(type, norm);
+        if (type && norm) {
+            addToQueue(type, norm);
+        }
     });
 }
 
@@ -150,6 +175,7 @@ function startSpeechRecognition() {
         currentInterim = interim;
         updateTranscript();
         updateSigns();
+        processNewFinalWords();
     };
 
     function mergeTranscripts(existing, incoming) {
@@ -187,6 +213,40 @@ function startSpeechRecognition() {
         document.getElementById('vs-transcript').innerHTML =
             '<span class="vs-error">Error al iniciar el micrófono: ' + e.message + '</span>';
     }
+}
+
+function processNewFinalWords() {
+    const words = fullTranscript.split(/\s+/).filter(w => w.length > 0);
+    if (words.length <= lastQueuedWordCount) return;
+
+    for (let i = lastQueuedWordCount; i < words.length; i++) {
+        const norm = normalizeWord(words[i]);
+        const media = getWordMedia(norm);
+        if (media) {
+            addToQueue(media.type, media.norm);
+        }
+    }
+    lastQueuedWordCount = words.length;
+}
+
+function addToQueue(type, norm) {
+    videoQueue.push({ type, norm });
+    if (!isPlaying) playNext();
+}
+
+function playNext() {
+    if (videoQueue.length === 0) {
+        isPlaying = false;
+        return;
+    }
+
+    isPlaying = true;
+    const item = videoQueue.shift();
+    showInPlayer(item.type, item.norm);
+
+    setTimeout(() => {
+        playNext();
+    }, displayDuration * 1000);
 }
 
 function updateTranscript() {
@@ -251,7 +311,7 @@ function updateSigns() {
             return `
                 <div class="vs-sign-card vs-sign-card-video${cls}" data-type="gesto" data-norm="${gestureFile}" data-index="${idx}">
                     <span class="vs-sign-label">${displayWord}</span>
-                    <span class="vs-sign-thumb">▶</span>
+                    <img class="vs-sign-img" src="assets/LSEC/gestosgif/${gestureFile}.gif" alt="${displayWord}">
                 </div>
             `;
         }
@@ -283,26 +343,13 @@ function updateSigns() {
     }).join('');
 
     scrollEl.scrollLeft = scrollEl.scrollWidth;
-
-    const lastWord = words[words.length - 1];
-    if (lastWord) {
-        const norm = normalizeWord(lastWord);
-        const gestureFile = getGestureFilename(norm);
-        if (gestureFile) {
-            showInPlayer('gesto', gestureFile);
-        } else if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
-            if (hasLetterImage(norm)) {
-                showInPlayer('letra-img', norm);
-            } else {
-                showInPlayer('letra-video', norm);
-            }
-        }
-    }
 }
 
 export function stopVozSenias() {
     listening = false;
     micEnabled = false;
+    videoQueue = [];
+    isPlaying = false;
     if (recognition) {
         try { recognition.stop(); } catch {}
         recognition = null;

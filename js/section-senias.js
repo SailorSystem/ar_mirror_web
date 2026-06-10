@@ -29,6 +29,9 @@ const GESTURE_CONF_THRESHOLD = 0.3;
 let lastGestureWord = "";
 let lastGestureTs = 0;
 const GESTURE_DEBOUNCE = 500;
+const GESTURE_HOLD_TIME = 3000;
+let displayedGestureWord = "";
+let displayedGestureTs = 0;
 
 export async function initSenias() {
     const vision = await FilesetResolver.forVisionTasks(
@@ -353,6 +356,8 @@ function render() {
             if (gresult && now - lastGestureTs > GESTURE_DEBOUNCE) {
                 lastGestureWord = gresult.word;
                 lastGestureTs = now;
+                displayedGestureWord = gresult.word;
+                displayedGestureTs = now;
                 lines.push(`Gesto: ${gresult.word}`);
             } else if (gresult && lastGestureWord !== "" && now - lastGestureTs < GESTURE_DEBOUNCE) {
                 lines.push(`Gesto: ${lastGestureWord}`);
@@ -361,6 +366,13 @@ function render() {
             const stillCount = gestureVotes.filter(v => v.distance > 2.0).length;
             if (stillCount > gestureVotes.length * 0.5) {
                 gestureVotes.length = 0;
+            }
+        }
+
+        if (displayedGestureWord && now - displayedGestureTs < GESTURE_HOLD_TIME) {
+            const hasGesture = lines.some(l => l.startsWith('Gesto:'));
+            if (!hasGesture) {
+                lines.push(`Gesto: ${displayedGestureWord}`);
             }
         }
 
