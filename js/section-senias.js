@@ -369,14 +369,26 @@ function render() {
             }
         }
 
+        let activeGestureWord = null;
         if (displayedGestureWord && now - displayedGestureTs < GESTURE_HOLD_TIME) {
-            const hasGesture = lines.some(l => l.startsWith('Gesto:'));
-            if (!hasGesture) {
-                lines.push(`Gesto: ${displayedGestureWord}`);
-            }
+            activeGestureWord = displayedGestureWord;
+        }
+        const gestureFromVote = lines.findIndex(l => l.startsWith('Gesto:'));
+        if (gestureFromVote >= 0) {
+            activeGestureWord = lines[gestureFromVote].replace('Gesto: ', '');
         }
 
-        drawPanel(lines, 120, "#00ff88", "rgba(0,60,20,0.65)", "LSEC — Letras + Gestos");
+        const letterLines = gestureFromVote >= 0
+            ? lines.filter((_, i) => i !== gestureFromVote)
+            : lines;
+
+        if (letterLines.length) {
+            drawPanel(letterLines, 120, "#00ff88", "rgba(0,60,20,0.65)", "LSEC — Letras");
+        }
+        if (activeGestureWord) {
+            drawGestureBadge(activeGestureWord);
+            drawPanel([`Gesto: ${activeGestureWord}`], 190, "#3CC3E6", "rgba(0,60,80,0.65)", "Gesto detectado");
+        }
     }
     requestAnimationFrame(render);
 }
@@ -409,6 +421,33 @@ function drawLetterBadge(letter, conf, side) {
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.fillText(`${Math.round(conf * 100)}%`, x + size / 2, y + size - 10);
 
+    ctx.restore();
+}
+
+function drawGestureBadge(word) {
+    const h = canvas.height;
+    const w = canvas.width;
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-canvas.width, 0);
+    const bw = Math.min(w * 0.55, 380);
+    const bh = 56;
+    const bx = w / 2 - bw / 2;
+    const by = 16;
+    ctx.fillStyle = "rgba(0,60,80,0.85)";
+    ctx.strokeStyle = "#3CC3E6";
+    ctx.lineWidth = 2;
+    rrect(ctx, bx, by, bw, bh, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#3CC3E6";
+    ctx.font = "bold 28px 'Segoe UI',sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(word, w / 2, by + bh / 2 - 2);
+    ctx.font = "9px 'Segoe UI',sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText("GESTO", w / 2, by + bh - 7);
     ctx.restore();
 }
 

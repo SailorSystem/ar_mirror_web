@@ -635,24 +635,45 @@ def main():
               f"F:{face_detected_count}/{samples} | prim:{primary_hand} "
               f"motion L:{total_motion['Left']:.3f} R:{total_motion['Right']:.3f} | saved:{saved_frames}", flush=True)
 
-    # ── Guardar JSON por módulo en lib/lsec_gestos/ ──
-    by_module = {}
-    for key, entry in dictionary.items():
-        mod = entry["module"]
-        by_module.setdefault(mod, {})[key] = entry
-
+    # ── Guardar JSON en lotes numerados (< 100 MB cada uno) ──
+    MAX_BATCH_SIZE = 95 * 1024 * 1024  # 95 MB margin
     GESTOS_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"\n  JSON por módulo en {GESTOS_DIR}/:")
-    for mod, data in sorted(by_module.items()):
-        path = GESTOS_DIR / f"{mod}.json"
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"    {mod}.json: {len(data)} gestos")
 
-    mod_list = sorted(by_module.keys())
+    entries = list(dictionary.items())
+    batches = []
+    current_batch = {}
+    current_size = 0
+
+    for key, entry in entries:
+        entry_str = json.dumps({key: entry}, indent=2, ensure_ascii=False)
+        entry_size = len(entry_str.encode("utf-8"))
+
+        if current_size + entry_size > MAX_BATCH_SIZE and current_batch:
+            batches.append(current_batch)
+            current_batch = {}
+            current_size = 0
+
+        current_batch[key] = entry
+        current_size += entry_size
+
+    if current_batch:
+        batches.append(current_batch)
+
+    batch_files = []
+    print(f"\n  JSON en lotes en {GESTOS_DIR}/:")
+    for idx, batch in enumerate(batches, 1):
+        fname = f"diccionario_{idx:02d}.json"
+        path = GESTOS_DIR / fname
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(batch, f, indent=2, ensure_ascii=False)
+        size_mb = path.stat().st_size / (1024 * 1024)
+        batch_files.append(fname)
+        print(f"    {fname}: {len(batch)} gestos ({size_mb:.1f} MB)")
+
+    batch_stems = [Path(f).stem for f in batch_files]
     with open(GESTOS_DIR / "index.json", "w", encoding="utf-8") as f:
-        json.dump(mod_list, f, indent=2)
-    print(f"    index.json: {len(mod_list)} módulos")
+        json.dump(batch_stems, f, indent=2)
+    print(f"    index.json: {len(batch_stems)} lotes")
 
     # ── Reporte HTML ──
     html = generate_report(report_entries)
