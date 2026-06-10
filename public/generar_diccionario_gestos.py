@@ -31,7 +31,7 @@ from pathlib import Path
 LSEC2_DIR = Path("assets/LSEC2")
 OUTPUT_DIR = Path("assets/LSEC2/diccionario_gestos")
 FRAMES_DIR = OUTPUT_DIR / "frames"
-JSON_PATH = Path("lib/lsec_gestos.json")
+GESTOS_DIR = Path("lib/lsec_gestos")
 TEMP_DIR = Path("/tmp/lsec_gestos")
 
 NUM_SAMPLES = 12
@@ -635,11 +635,24 @@ def main():
               f"F:{face_detected_count}/{samples} | prim:{primary_hand} "
               f"motion L:{total_motion['Left']:.3f} R:{total_motion['Right']:.3f} | saved:{saved_frames}", flush=True)
 
-    # ── Guardar JSON en lib/ ──
-    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(dictionary, f, indent=2, ensure_ascii=False)
-    print(f"\n  JSON: {JSON_PATH}")
+    # ── Guardar JSON por módulo en lib/lsec_gestos/ ──
+    by_module = {}
+    for key, entry in dictionary.items():
+        mod = entry["module"]
+        by_module.setdefault(mod, {})[key] = entry
+
+    GESTOS_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"\n  JSON por módulo en {GESTOS_DIR}/:")
+    for mod, data in sorted(by_module.items()):
+        path = GESTOS_DIR / f"{mod}.json"
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"    {mod}.json: {len(data)} gestos")
+
+    mod_list = sorted(by_module.keys())
+    with open(GESTOS_DIR / "index.json", "w", encoding="utf-8") as f:
+        json.dump(mod_list, f, indent=2)
+    print(f"    index.json: {len(mod_list)} módulos")
 
     # ── Reporte HTML ──
     html = generate_report(report_entries)

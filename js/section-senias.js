@@ -62,9 +62,13 @@ async function loadDictionary() {
 
 async function loadGestureDictionary() {
     try {
-        const resp = await fetch("lib/lsec_gestos.json");
-        gestureDict = await resp.json();
-        console.log(`Gestos LSEC cargado: ${Object.keys(gestureDict).length} gestos`);
+        const idxResp = await fetch("lib/lsec_gestos/index.json");
+        const modules = await idxResp.json();
+        const responses = await Promise.all(
+            modules.map(m => fetch(`lib/lsec_gestos/${m}.json`).then(r => r.json()))
+        );
+        gestureDict = Object.assign({}, ...responses);
+        console.log(`Gestos LSEC cargado: ${Object.keys(gestureDict).length} gestos (${modules.length} módulos)`);
     } catch(e) {
         console.error("Error cargando gestos:", e);
         gestureDict = {};
