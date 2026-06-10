@@ -51,22 +51,22 @@ export async function initSenias() {
 
 async function loadDictionary() {
     try {
-        const resp = await fetch("assets/LSEC/diccionario/landmarks.json");
+        const resp = await fetch("lib/lsec_abecedario.json");
         dictionary = await resp.json();
-        console.log(`Diccionario LSEC cargado: ${Object.keys(dictionary).length} letras`);
+        console.log(`Abecedario LSEC cargado: ${Object.keys(dictionary).length} letras`);
     } catch(e) {
-        console.error("Error cargando diccionario:", e);
+        console.error("Error cargando abecedario:", e);
         dictionary = {};
     }
 }
 
 async function loadGestureDictionary() {
     try {
-        const resp = await fetch("assets/LSEC/diccionario_gestos/gestos_landmarks.json");
+        const resp = await fetch("lib/lsec_gestos.json");
         gestureDict = await resp.json();
-        console.log(`Diccionario gestos LSEC cargado: ${Object.keys(gestureDict).length} gestos`);
+        console.log(`Gestos LSEC cargado: ${Object.keys(gestureDict).length} gestos`);
     } catch(e) {
-        console.error("Error cargando diccionario gestos:", e);
+        console.error("Error cargando gestos:", e);
         gestureDict = {};
     }
 }

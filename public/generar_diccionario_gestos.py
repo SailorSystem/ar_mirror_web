@@ -28,9 +28,10 @@ import time
 from pathlib import Path
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-INPUT_DIR = Path("assets/LSEC/gestos")
-OUTPUT_DIR = Path("assets/LSEC/diccionario_gestos")
+LSEC2_DIR = Path("assets/LSEC2")
+OUTPUT_DIR = Path("assets/LSEC2/diccionario_gestos")
 FRAMES_DIR = OUTPUT_DIR / "frames"
+JSON_PATH = Path("lib/lsec_gestos.json")
 TEMP_DIR = Path("/tmp/lsec_gestos")
 
 NUM_SAMPLES = 12
@@ -446,30 +447,57 @@ def main():
     FRAMES_DIR.mkdir(parents=True, exist_ok=True)
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    mp4_files = sorted(INPUT_DIR.glob("*.mp4"))
-    mp4_files = [f for f in mp4_files if ":Zone" not in f.name]
-    print(f"\n  Videos: {len(mp4_files)} | Frames por video: {NUM_SAMPLES}")
+    # ── Scan módulos 03-10 para archivos de video ───────────────────────
+    video_files = []  # (path, module_name, category_name)
+    module_dirs = sorted([
+        d for d in LSEC2_DIR.iterdir()
+        if d.is_dir() and d.name[:2].isdigit()
+        and 3 <= int(d.name[:2]) <= 10
+    ])
+    for mod_dir in module_dirs:
+        mod_name = mod_dir.name
+        for sub_dir in sorted(mod_dir.iterdir()):
+            if not sub_dir.is_dir():
+                continue
+            cat_name = sub_dir.name
+            for ext in ("*.MTS", "*.mp4", "*.MP4", "*.mts"):
+                for f in sorted(sub_dir.glob(ext)):
+                    if ":Zone" not in f.name:
+                        video_files.append((f, mod_name, cat_name))
+
+    print(f"\n  Módulos: {len(module_dirs)} | Videos: {len(video_files)} | Frames por video: {NUM_SAMPLES}")
+    for md in module_dirs:
+        count = sum(1 for _, m, _ in video_files if m == md.name)
+        if count:
+            print(f"    {md.name}: {count} videos")
+    print()
 
     dictionary = {}
     report_entries = []
     t_start = time.time()
 
-    for vid_idx, vid_path in enumerate(mp4_files):
+    for vid_idx, (vid_path, mod_name, cat_name) in enumerate(video_files):
         word_name = vid_path.stem
         word_key = normalize_word(word_name)
+        # Avoid key collisions: append source if duplicate
+        orig_key = word_key
+        suffix = 2
+        while word_key in dictionary:
+            word_key = f"{orig_key}_{suffix}"
+            suffix += 1
         t_vid = time.time()
 
         # ── Progress bar ────────────────────────────────────────────────
         elapsed = time.time() - t_start
         done = vid_idx
-        remain = len(mp4_files) - vid_idx
+        remain = len(video_files) - vid_idx
         avg = elapsed / max(vid_idx, 1)
         eta = avg * remain if vid_idx > 0 else 0
         bar_len = 30
-        filled = int(bar_len * vid_idx / len(mp4_files))
+        filled = int(bar_len * vid_idx / len(video_files))
         bar = "█" * filled + "░" * (bar_len - filled)
-        print(f"\n  [{bar}] {done}/{len(mp4_files)}  Elapsed:{elapsed/60:.1f}m  ETA:{eta/60:.1f}m", flush=True)
-        print(f"  [{vid_idx+1}/{len(mp4_files)}] {word_name} ({word_key}) ...", flush=True)
+        print(f"\n  [{bar}] {done}/{len(video_files)}  Elapsed:{elapsed/60:.1f}m  ETA:{eta/60:.1f}m", flush=True)
+        print(f"  [{vid_idx+1}/{len(video_files)}] {mod_name}/{cat_name}/{word_name} ({word_key}) ...", flush=True)
 
         cap = cv2.VideoCapture(str(vid_path))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -577,7 +605,9 @@ def main():
 
         dictionary[word_key] = {
             "word": word_name,
-            "video": str(vid_path.relative_to(Path("assets"))),
+            "module": mod_name,
+            "category": cat_name,
+            "video": str(vid_path.relative_to(LSEC2_DIR.parent)),
             "total_frames": total_frames,
             "fps": fps,
             "samples": samples,
@@ -605,11 +635,11 @@ def main():
               f"F:{face_detected_count}/{samples} | prim:{primary_hand} "
               f"motion L:{total_motion['Left']:.3f} R:{total_motion['Right']:.3f} | saved:{saved_frames}", flush=True)
 
-    # ── Guardar JSON ──
-    json_path = OUTPUT_DIR / "gestos_landmarks.json"
-    with open(json_path, "w", encoding="utf-8") as f:
+    # ── Guardar JSON en lib/ ──
+    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(dictionary, f, indent=2, ensure_ascii=False)
-    print(f"\n  JSON: {json_path}")
+    print(f"\n  JSON: {JSON_PATH}")
 
     # ── Reporte HTML ──
     html = generate_report(report_entries)
@@ -637,7 +667,7 @@ def main():
         print(f"  Tasa cara:           {total_f_ok/total_samples*100:.1f}%")
     print(f"  Tiempo total:        {t_total/60:.1f} minutos ({t_total:.0f}s)")
     print(f"  {'=' * 40}")
-    print(f"\n  Reporte: http://localhost:8000/assets/LSEC/diccionario_gestos/reporte.html")
+    print(f"\n  Reporte: http://localhost:8000/{OUTPUT_DIR}/reporte.html")
     print()
 
     shutil.rmtree(TEMP_DIR, ignore_errors=True)

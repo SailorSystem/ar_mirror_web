@@ -23,8 +23,9 @@ import shutil
 from pathlib import Path
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-INPUT_DIR = Path("assets/LSEC/abecedario")
-OUTPUT_DIR = Path("assets/LSEC/diccionario")
+INPUT_DIR = Path("assets/LSEC2/01_ABECEDARIO/manual_deletreo/ABECEDARIO LSEC 2026")
+OUTPUT_DIR = Path("assets/LSEC2/diccionario")
+JSON_PATH = Path("lib/lsec_abecedario.json")
 TEMP_DIR = Path("/tmp/lsec_diccionario")
 
 # Paleta de colores por dedo (BGR para OpenCV)
@@ -300,9 +301,9 @@ def main():
     jpg_files = sorted(INPUT_DIR.glob("*.jpg"))
     mp4_files = sorted(INPUT_DIR.glob("*.mp4"))
 
-    # Filtrar archivos Zone.Identifier (Windows leftovers)
-    jpg_files = [f for f in jpg_files if ":Zone" not in f.name]
-    mp4_files = [f for f in mp4_files if ":Zone" not in f.name]
+    # Filtrar archivos Zone.Identifier y duplicados (..)
+    jpg_files = [f for f in jpg_files if ":Zone" not in f.name and ".." not in f.stem]
+    mp4_files = [f for f in mp4_files if ":Zone" not in f.name and ".." not in f.stem]
 
     print(f"\n  Imágenes: {len(jpg_files)} archivos")
     print(f"  Videos:   {len(mp4_files)} archivos")
@@ -353,7 +354,7 @@ def main():
                     print("ERROR al extraer frame")
                     dictionary[letter].append({
                         "variant": "video",
-                        "file": str(fpath.relative_to(Path("assets"))),
+                        "file": str(fpath.relative_to(INPUT_DIR.parent.parent.parent)),
                         "detected": False,
                     })
                     report_entries.append({
@@ -370,7 +371,7 @@ def main():
                 print("NO se detectó mano")
                 dictionary[letter].append({
                     "variant": v["variant"],
-                    "file": str(fpath.relative_to(Path("assets"))),
+                    "file": str(fpath.relative_to(INPUT_DIR.parent.parent.parent)),
                     "detected": False,
                 })
                 report_entries.append({
@@ -386,7 +387,7 @@ def main():
 
             dictionary[letter].append({
                 "variant": v["variant"],
-                "file": str(fpath.relative_to(Path("assets"))),
+                "file": str(fpath.relative_to(INPUT_DIR.parent.parent.parent)),
                 "landmarks_raw": data["landmarks_raw"],
                 "landmarks_norm": data["landmarks_norm"],
                 "palm_size": data["palm_size"],
@@ -405,11 +406,11 @@ def main():
 
             print(f"OK (palm={data['palm_size']:.4f})")
 
-    # 4. Guardar JSON
-    json_path = OUTPUT_DIR / "landmarks.json"
-    with open(json_path, "w", encoding="utf-8") as f:
+    # 4. Guardar JSON en lib/
+    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(dictionary, f, indent=2, ensure_ascii=False)
-    print(f"\n\n  JSON guardado: {json_path}")
+    print(f"\n\n  JSON guardado: {JSON_PATH}")
 
     # 5. Generar reporte HTML
     html = generate_report(report_entries)
@@ -431,7 +432,7 @@ def main():
     print(f"  {'=' * 40}")
     print(f"\n  Para ver el reporte:")
     print(f"    python -m http.server 8000")
-    print(f"    → http://localhost:8000/assets/LSEC/diccionario/reporte.html")
+    print(f"    → http://localhost:8000/{OUTPUT_DIR}/reporte.html")
     print()
 
     # Limpiar temp
