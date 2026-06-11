@@ -636,7 +636,7 @@ def main():
               f"motion L:{total_motion['Left']:.3f} R:{total_motion['Right']:.3f} | saved:{saved_frames}", flush=True)
 
     # ── Guardar JSON en lotes numerados (< 100 MB cada uno) ──
-    MAX_BATCH_SIZE = 95 * 1024 * 1024  # 95 MB margin
+    MAX_BATCH_SIZE = 45 * 1024 * 1024  # 45 MB (bajo 50 MB recomendado por GitHub)
     GESTOS_DIR.mkdir(parents=True, exist_ok=True)
 
     entries = list(dictionary.items())
