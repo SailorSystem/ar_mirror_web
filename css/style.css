@@ -289,12 +289,17 @@ h1 {
     touch-action: none;
 }
 
-video,
-.canvas-container canvas {
+video {
     position: absolute;
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.canvas-container canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
     transform: scaleX(-1);
 }
 
@@ -985,7 +990,9 @@ nav {
 /* ─── Bioma AR ──────────────────────────────────────────────── */
 #bioma-canvas {
     transform: none !important;
-    z-index: 5;
+    z-index: 10;
+    pointer-events: auto;
+    touch-action: none;
 }
 
 .bioma-fps {
