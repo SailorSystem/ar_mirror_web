@@ -62,8 +62,8 @@ const INTRO_TEXT = {
     desc: "Ponte en cuclillas para que Donkey Kong salte y evite obstáculos. ¡A moverse!"
   },
   voicebird: {
-    title: "Flappy Voice",
-    desc: "Controla el vuelo con tu voz. Entre más agudo cantes, más alto volará el pájaro."
+    title: "Flappy Curl",
+    desc: "Controla el vuelo con curls de bíceps. Extiende los brazos abajo y flexiona los codos para que el pájaro suba."
   },
   pullup: {
     title: "Pull-up Coach",
@@ -105,7 +105,7 @@ export function showIntro(sectionId) {
     overlay.querySelector(".intro-icon").textContent = {
       animals: "🦁", senias: "✋", airpiano: "🎹",
       antigravedad: "🪐", game: "🐦", donkeyfitness: "🦍",
-      voicebird: "🎤", pullup: "💪", vozsenias: "🎤"
+      voicebird: "🏋️", pullup: "💪", vozsenias: "🎤"
     }[sectionId] || "✨";
     overlay.querySelector(".intro-title").textContent = info.title;
     overlay.querySelector(".intro-desc").textContent = info.desc;

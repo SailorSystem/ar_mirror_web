@@ -20,7 +20,7 @@ const sectionConfig = {
     animals:      { title: 'Animales AR',           init: initAnimalsAR,      stop: stopAnimalsAR },
     senias:       { title: 'Traductor de Señas',    init: initSenias,         stop: stopSenias },
     airpiano:     { title: 'Air Piano',             init: initAirPiano,       stop: stopAirPiano },
-    voicebird:    { title: 'Flappy Voice',          init: initVoiceBird,      stop: stopVoiceBird },
+    voicebird:    { title: 'Flappy Curl',            init: initVoiceBird,      stop: stopVoiceBird },
     pullup:       { title: 'Pull-up Coach',         init: initPullup,         stop: stopPullup },
     donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
     antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },

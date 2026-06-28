@@ -1,3 +1,6 @@
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+let poseLandmarker;
 let running = false;
 let isGameOver = false;
 let canvas, ctx;
@@ -12,66 +15,47 @@ bird.img.src = "assets/textures/bluebird-upflap.png";
 const pipeImg = new Image(); pipeImg.src = "assets/textures/pipe-green.png";
 const baseImg = new Image(); baseImg.src = "assets/textures/base.png";
 
-let audioCtx = null;
-let micStream = null;
-let analyser = null;
-let source = null;
-let dataArray = null;
-let smoothPitch = 0;
-let pitchHistory = [];
-let calibrated = false;
-let pitchMin = 180;
-let pitchMax = 350;
-let calibrateTimer = 0;
-const CALIBRATE_DURATION = 2000;
+let smoothAngle = 180;
+let modelReady = false;
 
-let micActive = false;
+const SKELETON = [
+  [11, 12], [11, 23], [12, 24], [23, 24],
+  [11, 13], [13, 15], [12, 14], [14, 16],
+  [23, 25], [25, 27], [24, 26], [26, 28],
+];
 
-async function startMic() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  try {
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
-  } catch (e) {
-    console.warn('AudioContext resume falló:', e);
-  }
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  source = audioCtx.createMediaStreamSource(micStream);
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  source.connect(analyser);
-  dataArray = new Float32Array(analyser.fftSize);
-  micActive = true;
+function calcElbowAngle(shoulder, elbow, wrist) {
+  const v1x = shoulder.x - elbow.x;
+  const v1y = shoulder.y - elbow.y;
+  const v2x = wrist.x - elbow.x;
+  const v2y = wrist.y - elbow.y;
+  const dot = v1x * v2x + v1y * v2y;
+  const m1 = Math.sqrt(v1x * v1x + v1y * v1y);
+  const m2 = Math.sqrt(v2x * v2x + v2y * v2y);
+  if (m1 < 0.001 || m2 < 0.001) return 180;
+  const angle = Math.acos(Math.max(-1, Math.min(1, dot / (m1 * m2))));
+  return angle * (180 / Math.PI);
 }
 
-function stopMic() {
-  if (micStream) {
-    micStream.getTracks().forEach(t => t.stop());
-    micStream = null;
+function drawSkeleton(lm, W, H) {
+  for (const [a, b] of SKELETON) {
+    ctx.beginPath();
+    ctx.moveTo(lm[a].x * W, lm[a].y * H);
+    ctx.lineTo(lm[b].x * W, lm[b].y * H);
+    ctx.strokeStyle = "rgba(60,195,230,0.30)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
-  if (audioCtx && audioCtx.state !== "closed") {
-    audioCtx.close();
-    audioCtx = null;
+  for (const i of [11, 12, 13, 14, 15, 16]) {
+    const x = lm[i].x * W, y = lm[i].y * H;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = i === 13 || i === 14 ? "#ffd166" : "#3CC3E6";
+    ctx.shadowColor = "#3CC3E6";
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.shadowBlur = 0;
   }
-}
-
-function detectPitch(buffer, sampleRate) {
-  const minFreq = 75, maxFreq = 900;
-  const minOffset = Math.floor(sampleRate / maxFreq);
-  const maxOffset = Math.floor(sampleRate / minFreq);
-  let bestOffset = minOffset, bestDiff = Infinity;
-
-  for (let off = minOffset; off <= maxOffset; off++) {
-    let diff = 0;
-    for (let i = 0; i < maxOffset; i++) diff += Math.abs(buffer[i] - buffer[i + off]);
-    const avg = diff / maxOffset;
-    if (avg < bestDiff) { bestDiff = avg; bestOffset = off; }
-  }
-
-  let rms = 0;
-  for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
-  rms = Math.sqrt(rms / buffer.length);
-  if (rms < 0.008 || bestDiff > 0.35) return -1;
-  return sampleRate / bestOffset;
 }
 
 export async function initVoiceBird() {
@@ -79,9 +63,27 @@ export async function initVoiceBird() {
   ctx = canvas.getContext("2d");
 
   try {
-    await startMic();
+    const vision = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+    );
+    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "GPU" },
+      runningMode: "VIDEO", numPoses: 1,
+    });
+    modelReady = true;
   } catch {
-    console.warn("Micrófono no disponible");
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+      );
+      poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "CPU" },
+        runningMode: "VIDEO", numPoses: 1,
+      });
+      modelReady = true;
+    } catch (err) {
+      console.error("Error cargando PoseLandmarker:", err);
+    }
   }
 
   document.getElementById("restart-btn").onclick = () => {
@@ -96,8 +98,7 @@ export async function initVoiceBird() {
 function resetGame() {
   score = 0; pipes.length = 0; frameCount = 0; bird.y = 300;
   isGameOver = false;
-  pitchHistory = []; calibrated = false; calibrateTimer = 0;
-  smoothPitch = 0;
+  smoothAngle = 180;
   document.getElementById("game-over-screen").classList.add("hidden");
 }
 
@@ -118,77 +119,68 @@ function animate() {
 
     ctx.clearRect(0, 0, W, H);
 
-    if (analyser && dataArray) {
-      analyser.getFloatTimeDomainData(dataArray);
-      const pitch = detectPitch(dataArray, audioCtx.sampleRate);
+    let targetY = bird.y;
 
-      if (pitch > 0) {
-        smoothPitch += (pitch - smoothPitch) * 0.35;
-        if (!calibrated) {
-          pitchHistory.push(smoothPitch);
-          calibrateTimer += 16;
-          if (calibrateTimer >= CALIBRATE_DURATION && pitchHistory.length > 10) {
-            let mn = Infinity, mx = -Infinity;
-            pitchHistory.forEach(v => { if (v < mn) mn = v; if (v > mx) mx = v; });
-            const range = Math.max(mx - mn, 40);
-            pitchMin = mn - range * 0.25;
-            pitchMax = mx + range * 0.25;
-            calibrated = true;
-          }
+    if (modelReady && poseLandmarker) {
+      const results = poseLandmarker.detectForVideo(video, performance.now());
+
+      if (results.landmarks && results.landmarks.length > 0) {
+        const lm = results.landmarks[0];
+
+        drawSkeleton(lm, W, H);
+
+        const leftAngle = calcElbowAngle(lm[11], lm[13], lm[15]);
+        const rightAngle = calcElbowAngle(lm[12], lm[14], lm[16]);
+        const minAngle = Math.min(leftAngle, rightAngle);
+
+        smoothAngle += (minAngle - smoothAngle) * 0.3;
+
+        const norm = Math.max(0, Math.min(1, (smoothAngle - 30) / (180 - 30)));
+        targetY = 10 + (1 - norm) * (H - 60);
+
+        const barX = W - 20;
+        const barY = H * 0.08;
+        const barH = H * 0.60;
+
+        function drawAngleBar(x, angle, label) {
+          const n = Math.max(0, Math.min(1, (angle - 30) / (180 - 30)));
+          const iy = barY + (1 - n) * barH;
+
+          ctx.fillStyle = "rgba(255,255,255,0.04)";
+          ctx.beginPath();
+          ctx.roundRect(x, barY, 8, barH, 4);
+          ctx.fill();
+
+          const grad = ctx.createLinearGradient(x, barY, x, barY + barH);
+          grad.addColorStop(0, "#4ade80");
+          grad.addColorStop(0.5, "#ffd166");
+          grad.addColorStop(1, "#ff6b6b");
+          ctx.fillStyle = grad;
+          ctx.shadowColor = "#ffd166";
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.roundRect(x - 1, iy - 2, 10, 4, 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          ctx.font = "9px 'Inter', sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(255,255,255,0.35)";
+          ctx.fillText(label, x + 4, barY - 6);
         }
-      }
 
-      // Igual que Flappy Nose: smoothing factor 0.25, rango completo
-      if (calibrated && smoothPitch > 0) {
-        let t = (smoothPitch - pitchMin) / (pitchMax - pitchMin);
-        t = Math.max(0, Math.min(1, t));
-        // Rango completo: desde casi el tope hasta casi el piso
-        const targetY = 10 + (1 - t) * (H - 60);
-        bird.y += (targetY - bird.y) * 0.25;
-      } else if (!calibrated) {
-        bird.y += 0.8;
+        drawAngleBar(barX - 14, leftAngle, "IZQ");
+        drawAngleBar(barX + 6, rightAngle, "DER");
       } else {
-        bird.y += 1.8;
-      }
-
-      bird.y = Math.max(5, Math.min(H - 45, bird.y));
-
-      // Waveform decorativa
-      ctx.save();
-      ctx.globalAlpha = 0.08;
-      for (let i = 0; i < dataArray.length; i += 4) {
-        const x = (i / dataArray.length) * W;
-        ctx.fillStyle = "#3CC3E6";
-        ctx.fillRect(x, H - 14 - (dataArray[i] + 1) * 10, 2, (dataArray[i] + 1) * 10);
-      }
-      ctx.restore();
-
-      // Indicador de tono
-      if (calibrated) {
-        const by = H * 0.08, bh = H * 0.60, bx = W - 26;
-        const norm = Math.max(0, Math.min(1, (smoothPitch - pitchMin) / (pitchMax - pitchMin)));
-        const iy = by + (1 - norm) * bh;
-
-        ctx.fillStyle = "rgba(255,255,255,0.04)";
-        ctx.beginPath();
-        ctx.roundRect(bx, by, 8, bh, 4);
-        ctx.fill();
-
-        const g = ctx.createLinearGradient(bx, by, bx, by + bh);
-        g.addColorStop(0, "#3CC3E6"); g.addColorStop(0.5, "#ffd166"); g.addColorStop(1, "#ff6b6b");
-        ctx.fillStyle = g;
-        ctx.shadowColor = "#ffd166";
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.roundRect(bx - 1, iy - 3, 10, 6, 3);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        bird.y += 0.8;
       }
     } else {
       bird.y += 0.8;
     }
 
-    // Tuberías con fade-in
+    bird.y += (targetY - bird.y) * 0.25;
+    bird.y = Math.max(5, Math.min(H - 45, bird.y));
+
     if (frameCount % 120 === 0) {
       const minH = 50, maxH = H - pipeSettings.gap - minH - 50;
       pipes.push({ x: 0 - pipeSettings.width, y: Math.floor(Math.random() * (maxH - minH + 1)) + minH, passed: false, fade: 0 });
@@ -221,7 +213,6 @@ function animate() {
     ctx.drawImage(bird.img, -bird.w / 2, -bird.h / 2, bird.w, bird.h);
     ctx.restore();
 
-    // Score con mirror
     ctx.save();
     ctx.scale(-1, 1);
     ctx.translate(-W, 0);
@@ -233,21 +224,18 @@ function animate() {
     ctx.fillText(`Puntos: ${score}`, 20, 60);
     ctx.restore();
 
-    if (!calibrated) {
+    if (!modelReady) {
       ctx.save();
       ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(0, H/2-30, W, 60);
-      ctx.fillStyle = "#ffd166";
+      ctx.fillRect(0, H / 2 - 30, W, 60);
+      ctx.fillStyle = "#f87171";
       ctx.font = "bold 22px 'Orbitron', sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.shadowColor = "#ffd166";
+      ctx.shadowColor = "#f87171";
       ctx.shadowBlur = 16;
-      ctx.fillText("🎤 Haz sonido fuerte y suave para calibrar…", W/2, H/2 - 8);
+      ctx.fillText("Cargando modelo de pose…", W / 2, H / 2);
       ctx.shadowBlur = 0;
-      ctx.fillStyle = smoothPitch > 0 ? "#4ade80" : "#f87171";
-      ctx.font = "bold 16px 'Orbitron', sans-serif";
-      ctx.fillText(smoothPitch > 0 ? "✓ Micrófono activo" : "✗ Sin señal de audio", W/2, H/2 + 18);
       ctx.restore();
     }
 
@@ -259,8 +247,8 @@ function animate() {
 
 function checkCollision(p, H) {
   const h = 10;
-  const l = bird.x - bird.w/2 + h, r = bird.x + bird.w/2 - h;
-  const t = bird.y - bird.h/2 + h, b = bird.y + bird.h/2 - h;
+  const l = bird.x - bird.w / 2 + h, r = bird.x + bird.w / 2 - h;
+  const t = bird.y - bird.h / 2 + h, b = bird.y + bird.h / 2 - h;
   if (r > p.x && l < p.x + pipeSettings.width) {
     if (t < p.y || b > p.y + pipeSettings.gap) return true;
   }
@@ -269,6 +257,5 @@ function checkCollision(p, H) {
 
 export function stopVoiceBird() {
   running = false;
-  stopMic();
   document.getElementById("game-over-screen").classList.add("hidden");
 }
