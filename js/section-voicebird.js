@@ -6,6 +6,7 @@ let isGameOver = false;
 let canvas, ctx;
 let frameCount = 0;
 let score = 0;
+let velocity = 0;
 
 const bird = { x: 480, y: 300, w: 45, h: 35, img: new Image() };
 const pipes = [];
@@ -15,8 +16,16 @@ bird.img.src = "assets/textures/bluebird-upflap.png";
 const pipeImg = new Image(); pipeImg.src = "assets/textures/pipe-green.png";
 const baseImg = new Image(); baseImg.src = "assets/textures/base.png";
 
-let smoothAngle = 180;
 let modelReady = false;
+let leftReady = false;
+let rightReady = false;
+let flapFlash = 0;
+let curlCount = 0;
+
+const GRAVITY = 0.45;
+const FLAP_VELOCITY = -7.5;
+const ANGLE_EXTENDED = 150;
+const ANGLE_CURLED = 100;
 
 const SKELETON = [
   [11, 12], [11, 23], [12, 24], [23, 24],
@@ -58,6 +67,12 @@ function drawSkeleton(lm, W, H) {
   }
 }
 
+function flap() {
+  velocity = FLAP_VELOCITY;
+  curlCount++;
+  flapFlash = 1;
+}
+
 export async function initVoiceBird() {
   canvas = document.getElementById("output_canvas");
   ctx = canvas.getContext("2d");
@@ -97,8 +112,8 @@ export async function initVoiceBird() {
 
 function resetGame() {
   score = 0; pipes.length = 0; frameCount = 0; bird.y = 300;
-  isGameOver = false;
-  smoothAngle = 180;
+  isGameOver = false; velocity = 0; curlCount = 0;
+  leftReady = false; rightReady = false; flapFlash = 0;
   document.getElementById("game-over-screen").classList.add("hidden");
 }
 
@@ -119,8 +134,6 @@ function animate() {
 
     ctx.clearRect(0, 0, W, H);
 
-    let targetY = bird.y;
-
     if (modelReady && poseLandmarker) {
       const results = poseLandmarker.detectForVideo(video, performance.now());
 
@@ -131,18 +144,24 @@ function animate() {
 
         const leftAngle = calcElbowAngle(lm[11], lm[13], lm[15]);
         const rightAngle = calcElbowAngle(lm[12], lm[14], lm[16]);
-        const minAngle = Math.min(leftAngle, rightAngle);
 
-        smoothAngle += (minAngle - smoothAngle) * 0.3;
+        if (leftAngle > ANGLE_EXTENDED) leftReady = true;
+        if (rightAngle > ANGLE_EXTENDED) rightReady = true;
 
-        const norm = Math.max(0, Math.min(1, (smoothAngle - 30) / (180 - 30)));
-        targetY = 10 + (1 - norm) * (H - 60);
+        if (leftReady && leftAngle < ANGLE_CURLED) {
+          flap();
+          leftReady = false;
+        }
+        if (rightReady && rightAngle < ANGLE_CURLED) {
+          flap();
+          rightReady = false;
+        }
 
         const barX = W - 20;
         const barY = H * 0.08;
         const barH = H * 0.60;
 
-        function drawAngleBar(x, angle, label) {
+        function drawAngleBar(x, angle, label, ready) {
           const n = Math.max(0, Math.min(1, (angle - 30) / (180 - 30)));
           const iy = barY + (1 - n) * barH;
 
@@ -163,23 +182,38 @@ function animate() {
           ctx.fill();
           ctx.shadowBlur = 0;
 
+          if (ready) {
+            ctx.fillStyle = "rgba(74,222,128,0.25)";
+            ctx.beginPath();
+            ctx.roundRect(x - 2, barY, 12, barH, 4);
+            ctx.fill();
+          }
+
           ctx.font = "9px 'Inter', sans-serif";
           ctx.textAlign = "center";
           ctx.fillStyle = "rgba(255,255,255,0.35)";
           ctx.fillText(label, x + 4, barY - 6);
+
+          ctx.font = "8px 'Inter', sans-serif";
+          ctx.fillStyle = ready ? "rgba(74,222,128,0.6)" : "rgba(255,255,255,0.2)";
+          ctx.fillText(ready ? "LISTO" : "---", x + 4, barY + barH + 10);
         }
 
-        drawAngleBar(barX - 14, leftAngle, "IZQ");
-        drawAngleBar(barX + 6, rightAngle, "DER");
-      } else {
-        bird.y += 0.8;
+        drawAngleBar(barX - 14, leftAngle, "IZQ", leftReady);
+        drawAngleBar(barX + 6, rightAngle, "DER", rightReady);
+
+        ctx.font = "10px 'Inter', sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.fillText(`Curls: ${curlCount}`, W - 4, H - 10);
       }
-    } else {
-      bird.y += 0.8;
     }
 
-    bird.y += (targetY - bird.y) * 0.25;
+    velocity += GRAVITY;
+    bird.y += velocity;
     bird.y = Math.max(5, Math.min(H - 45, bird.y));
+
+    if (flapFlash > 0) flapFlash = Math.max(0, flapFlash - 0.04);
 
     if (frameCount % 120 === 0) {
       const minH = 50, maxH = H - pipeSettings.gap - minH - 50;
@@ -207,8 +241,17 @@ function animate() {
 
     ctx.drawImage(baseImg, 0, H - 40, W, 40);
 
+    if (flapFlash > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(255,209,102,${flapFlash * 0.15})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
     ctx.save();
     ctx.translate(bird.x, bird.y);
+    const tilt = Math.max(-25, Math.min(25, velocity * 2.5));
+    ctx.rotate(tilt * Math.PI / 180);
     ctx.scale(-1, 1);
     ctx.drawImage(bird.img, -bird.w / 2, -bird.h / 2, bird.w, bird.h);
     ctx.restore();
