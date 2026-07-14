@@ -60,9 +60,12 @@ window.showSection = async function(sectionId) {
 
     try {
         const c = document.getElementById('output_canvas');
-        c.width = 640; c.height = 480;
+        const container = c.parentElement;
+        const cw = container?.clientWidth || 1280;
+        const ch = container?.clientHeight || 720;
+        c.width = cw; c.height = ch;
         c.getContext('2d').fillStyle = '#000';
-        c.getContext('2d').fillRect(0, 0, 640, 480);
+        c.getContext('2d').fillRect(0, 0, cw, ch);
 
         if (!config.noCamera) {
             await startCamera();

@@ -53,6 +53,7 @@ body::after {
 #sec-home {
     position: relative;
     min-height: 100vh;
+    min-height: 100dvh; /* corrige la barra de direcciones móvil */
     overflow: hidden;
     isolation: isolate;
 }
@@ -71,6 +72,7 @@ body::after {
     position: relative;
     z-index: 1;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -179,12 +181,17 @@ h1 {
     justify-content: flex-end;
     gap: 6px;
     padding: 18px 22px;
+    /* Fallback para navegadores sin soporte de color-mix() (Safari <16.4, Firefox <113, WebViews viejos) */
+    border: 1px solid var(--card-accent);
     border: 1px solid color-mix(in srgb, var(--card-accent), white 20%);
     border-radius: 24px;
     color: white;
     overflow: hidden;
     cursor: pointer;
     isolation: isolate;
+    background:
+        radial-gradient(circle at var(--mx) var(--my), var(--card-accent), transparent 32%),
+        linear-gradient(150deg, rgba(255,255,255,.17), rgba(255,255,255,.055) 42%, rgba(31,63,139,.28));
     background:
         radial-gradient(circle at var(--mx) var(--my), color-mix(in srgb, var(--card-accent), transparent 58%), transparent 32%),
         linear-gradient(150deg, rgba(255,255,255,.17), rgba(255,255,255,.055) 42%, rgba(31,63,139,.28));
@@ -211,6 +218,9 @@ h1 {
 .card::before {
     background:
         linear-gradient(115deg, transparent 0 28%, rgba(255,255,255,.24) 45%, transparent 62%),
+        radial-gradient(circle at 82% 18%, var(--card-accent), transparent 28%);
+    background:
+        linear-gradient(115deg, transparent 0 28%, rgba(255,255,255,.24) 45%, transparent 62%),
         radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--card-accent), white 16%), transparent 28%);
     opacity: .22;
 }
@@ -220,7 +230,11 @@ h1 {
     width: 72px;
     height: 72px;
     border-radius: 999px;
+    border: 1px solid var(--card-accent);
     border: 1px solid color-mix(in srgb, var(--card-accent), transparent 20%);
+    box-shadow:
+        0 0 34px var(--card-accent),
+        inset 0 0 22px var(--card-accent);
     box-shadow:
         0 0 34px color-mix(in srgb, var(--card-accent), transparent 38%),
         inset 0 0 22px color-mix(in srgb, var(--card-accent), transparent 50%);
@@ -228,7 +242,12 @@ h1 {
 }
 
 .card:hover {
+    border-color: var(--card-accent);
     border-color: color-mix(in srgb, var(--card-accent), white 38%);
+    box-shadow:
+        0 26px 70px rgba(0,0,0,.42),
+        0 0 38px var(--card-accent),
+        inset 0 1px 0 rgba(255,255,255,.36);
     box-shadow:
         0 26px 70px rgba(0,0,0,.42),
         0 0 38px color-mix(in srgb, var(--card-accent), transparent 62%),
@@ -250,6 +269,7 @@ h1 {
     font-size: .68rem;
     letter-spacing: .18em;
     text-transform: uppercase;
+    color: var(--card-accent);
     color: color-mix(in srgb, var(--card-accent), white 32%);
 }
 
@@ -284,6 +304,7 @@ h1 {
     position: relative;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     background: #000;
     overflow: hidden;
     touch-action: none;
@@ -512,6 +533,16 @@ nav {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Breakpoint por ALTURA — independiente del ancho. Resuelve el caso de
+   laptops/tablets horizontales o ventanas bajas donde el contenido
+   quedaba cortado por overflow:hidden + 100vh y solo se veía completo
+   haciendo zoom out. */
+@media (max-height: 700px) {
+    body { overflow-y: auto; }
+    #sec-home { overflow: visible; min-height: auto; }
+    .hero { min-height: auto; justify-content: flex-start; padding-top: 16px; padding-bottom: 24px; }
+}
 
 @media (max-width: 768px) {
     body { overflow-y: auto; }
