@@ -1,4 +1,5 @@
-import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { createWithFallback } from './detector.js';
 
 let poseLandmarker;
 let running = false;
@@ -78,27 +79,13 @@ export async function initVoiceBird() {
   ctx = canvas.getContext("2d");
 
   try {
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-    );
-    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "GPU" },
+    poseLandmarker = await createWithFallback(PoseLandmarker, {
+      baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task" },
       runningMode: "VIDEO", numPoses: 1,
-    });
+    }, "Flappy Curl");
     modelReady = true;
-  } catch {
-    try {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-      );
-      poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "CPU" },
-        runningMode: "VIDEO", numPoses: 1,
-      });
-      modelReady = true;
-    } catch (err) {
-      console.error("Error cargando PoseLandmarker:", err);
-    }
+  } catch (err) {
+    console.error("Error cargando PoseLandmarker:", err);
   }
 
   document.getElementById("restart-btn").onclick = () => {

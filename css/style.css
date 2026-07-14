@@ -20,7 +20,8 @@ body {
         radial-gradient(circle at 82% 18%, rgba(60, 195, 230, 0.24), transparent 34%),
         linear-gradient(130deg, #030614 0%, #071839 45%, #1F3F8B 100%);
     color: var(--light);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     touch-action: manipulation;
 }
 
@@ -54,7 +55,7 @@ body::after {
     position: relative;
     min-height: 100vh;
     min-height: 100dvh; /* corrige la barra de direcciones móvil */
-    overflow: hidden;
+    overflow: visible;
     isolation: isolate;
 }
 
@@ -419,8 +420,28 @@ nav {
     max-width: 400px;
 }
 
-.intro-btn {
+.intro-actions {
+    display: flex;
+    gap: 10px;
     margin-top: 6px;
+    width: 100%;
+    justify-content: center;
+}
+
+.intro-btn-cancel {
+    background: rgba(255,255,255,.06);
+    border-color: rgba(255,255,255,.18);
+    color: rgba(255,255,255,.65);
+    box-shadow: none;
+}
+
+.intro-btn-cancel:hover {
+    background: rgba(255,107,107,.14);
+    border-color: rgba(255,107,107,.4);
+    color: #fff;
+}
+
+.intro-btn {
     padding: 12px 36px;
     border: 1px solid rgba(60,195,230,.5);
     border-radius: 14px;
@@ -534,13 +555,11 @@ nav {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Breakpoint por ALTURA — independiente del ancho. Resuelve el caso de
-   laptops/tablets horizontales o ventanas bajas donde el contenido
-   quedaba cortado por overflow:hidden + 100vh y solo se veía completo
-   haciendo zoom out. */
+/* Breakpoint por ALTURA — independiente del ancho. Ajusta el layout del
+   hero en pantallas anchas y bajas (laptops chicos, tablets horizontales)
+   para que no quede centrado a la fuerza y recorte contenido. El scroll
+   en sí ya está habilitado de forma global arriba (body/#sec-home). */
 @media (max-height: 700px) {
-    body { overflow-y: auto; }
-    #sec-home { overflow: visible; min-height: auto; }
     .hero { min-height: auto; justify-content: flex-start; padding-top: 16px; padding-bottom: 24px; }
 }
 

@@ -67,6 +67,17 @@ window.showSection = async function(sectionId) {
         c.getContext('2d').fillStyle = '#000';
         c.getContext('2d').fillRect(0, 0, cw, ch);
 
+        if (sectionId === 'vozsenias') {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                const overlay = document.getElementById('loading-overlay');
+                overlay.classList.remove('hidden');
+                overlay.querySelector('p').textContent = 'Reconocimiento de voz no soportado. Usa Chrome o Edge.';
+                await new Promise(r => setTimeout(r, 3000));
+                throw new Error('SpeechRecognition no soportado');
+            }
+        }
+
         if (!config.noCamera) {
             await startCamera();
             await showIntro(sectionId);
@@ -77,7 +88,9 @@ window.showSection = async function(sectionId) {
         }
         await config.init();
     } catch (err) {
-        console.error('Error al iniciar sección:', err);
+        if (err?.message !== 'cancelled') {
+            console.error('Error al iniciar sección:', err);
+        }
         window.showSection('home');
     }
 };

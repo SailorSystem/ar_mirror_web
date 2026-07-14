@@ -91,14 +91,17 @@ function ensureIntroContainer() {
       <div class="intro-icon"></div>
       <h2 class="intro-title"></h2>
       <p class="intro-desc"></p>
-      <button class="intro-btn">Comenzar</button>
+      <div class="intro-actions">
+        <button class="intro-btn intro-btn-cancel">Cancelar</button>
+        <button class="intro-btn">Comenzar</button>
+      </div>
       <p class="intro-hint">Presiona "Comenzar" para iniciar la experiencia</p>
     </div>`;
   document.body.appendChild(el);
 }
 
 export function showIntro(sectionId) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     ensureIntroContainer();
     const overlay = document.getElementById(INTRO_EL_ID);
     const info = INTRO_TEXT[sectionId] || { title: sectionId, desc: "" };
@@ -111,10 +114,16 @@ export function showIntro(sectionId) {
     overlay.querySelector(".intro-desc").textContent = info.desc;
     overlay.classList.remove("hidden");
 
-    const btn = overlay.querySelector(".intro-btn");
+    const btn = overlay.querySelector(".intro-btn:not(.intro-btn-cancel)");
+    const cancelBtn = overlay.querySelector(".intro-btn-cancel");
+
     btn.onclick = () => {
       overlay.classList.add("hidden");
       resolve();
+    };
+    cancelBtn.onclick = () => {
+      overlay.classList.add("hidden");
+      reject(new Error("cancelled"));
     };
   });
 }
@@ -152,4 +161,25 @@ export async function waitForPerson(videoElement) {
 
 export function stopPresenceCheck() {
   detectionRunning = false;
+}
+
+export async function createWithFallback(ModelClass, options, name = '') {
+  const { FilesetResolver } = await import(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"
+  );
+  const vision = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+  );
+  try {
+    return await ModelClass.createFromOptions(vision, {
+      ...options,
+      baseOptions: { ...options.baseOptions, delegate: "GPU" },
+    });
+  } catch {
+    console.warn(`GPU no disponible${name ? ` para ${name}` : ''}, usando CPU`);
+    return await ModelClass.createFromOptions(vision, {
+      ...options,
+      baseOptions: { ...options.baseOptions, delegate: "CPU" },
+    });
+  }
 }

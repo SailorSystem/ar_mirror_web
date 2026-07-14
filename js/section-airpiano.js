@@ -1,4 +1,5 @@
-import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { getHandLandmarker, createWithFallback } from './detector.js';
 
 let running = false;
 let handLandmarker;
@@ -150,20 +151,12 @@ function drawEffects(ctx, W, H) {
 }
 
 export async function initAirPiano() {
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-  );
-  try {
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "GPU" },
+  handLandmarker = getHandLandmarker();
+  if (!handLandmarker) {
+    handLandmarker = await createWithFallback(HandLandmarker, {
+      baseOptions: { modelAssetPath: "public/models/hand_landmarker.task" },
       runningMode: "VIDEO", numHands: 2,
-    });
-  } catch {
-    console.warn("GPU no disponible para Air Piano, usando CPU");
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "public/models/hand_landmarker.task", delegate: "CPU" },
-      runningMode: "VIDEO", numHands: 2,
-    });
+    }, "Air Piano");
   }
 
   running = true;

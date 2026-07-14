@@ -25,12 +25,56 @@ async function checkARSupport() {
   }
 }
 
+let initRetry = null;
+
+function disposeMaterial(material) {
+  if (!material) return;
+  for (const key of Object.keys(material)) {
+    const value = material[key];
+    if (value && typeof value === 'object' && value.isTexture) {
+      value.dispose();
+    }
+  }
+  material.dispose();
+}
+
+function disposeModel() {
+  if (!model) return;
+  model.traverse((child) => {
+    if (child.isMesh) {
+      child.geometry?.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(disposeMaterial);
+        } else {
+          disposeMaterial(child.material);
+        }
+      }
+    }
+  });
+  model = null;
+  mixer = null;
+}
+
 export async function initBioma() {
   const container = document.querySelector('.canvas-container');
 
-  THREE = await import('https://unpkg.com/three@0.164.1/build/three.module.js');
-  const { GLTFLoader } = await import('https://unpkg.com/three@0.164.1/examples/jsm/loaders/GLTFLoader.js');
-  const { OrbitControls } = await import('https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js');
+  try {
+    THREE = await import('https://unpkg.com/three@0.164.1/build/three.module.js');
+  } catch {
+    showToast('Error al cargar Three.js. Verifica tu conexión a internet.');
+    return;
+  }
+  let GLTFLoader, OrbitControls;
+  try {
+    const gltfMod = await import('https://unpkg.com/three@0.164.1/examples/jsm/loaders/GLTFLoader.js');
+    GLTFLoader = gltfMod.GLTFLoader;
+    const orbitMod = await import('https://unpkg.com/three@0.164.1/examples/jsm/controls/OrbitControls.js');
+    OrbitControls = orbitMod.OrbitControls;
+  } catch {
+    showToast('Error al cargar dependencias 3D. Verifica tu conexión.');
+    return;
+  }
 
   const canvas = document.createElement('canvas');
   canvas.id = 'bioma-canvas';
@@ -106,22 +150,34 @@ export async function initBioma() {
 
   updateStatus('Preparando modelo 3D…', 0);
 
-  try {
-    const anacondaGltf = await new Promise((resolve, reject) => {
-      const loader = new GLTFLoader();
-      loader.load(
-        'assets/yasuni/3d/models_animals/anaconda_attack_jungle.glb',
-        (gltf) => resolve(gltf),
-        (xhr) => {
-          if (xhr.total > 0) {
-            const pct = Math.round((xhr.loaded / xhr.total) * 100);
-            updateStatus(`Cargando anaconda… ${pct}%`, pct);
-          }
-        },
-        (err) => reject(err)
-      );
-    });
+  let anacondaGltf = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      anacondaGltf = await new Promise((resolve, reject) => {
+        const loader = new GLTFLoader();
+        loader.load(
+          'assets/yasuni/3d/models_animals/anaconda_attack_jungle.glb',
+          (gltf) => resolve(gltf),
+          (xhr) => {
+            if (xhr.total > 0) {
+              const pct = Math.round((xhr.loaded / xhr.total) * 100);
+              updateStatus(`Cargando anaconda… ${pct}%`, pct);
+            }
+          },
+          (err) => reject(err)
+        );
+      });
+      break;
+    } catch (err) {
+      console.error(`Intento ${attempt + 1} falló:`, err);
+      if (attempt === 0) {
+        updateStatus('⚠️ Error, reintentando…', 0);
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+  }
 
+  if (anacondaGltf) {
     updateStatus('Procesando modelo…', 95);
 
     model = anacondaGltf.scene;
@@ -147,14 +203,17 @@ export async function initBioma() {
 
     updateStatus('✅ Anaconda cargada', 100);
     await new Promise(r => setTimeout(r, 800));
-
-  } catch (err) {
-    console.error('Error cargando modelo:', err);
-    updateStatus('❌ Error al cargar el modelo. Revisa la consola.', 0);
-    await new Promise(r => setTimeout(r, 3000));
+  } else {
+    updateStatus('❌ No se pudo cargar el modelo 3D.', 0);
+    await new Promise(r => setTimeout(r, 2000));
   }
 
   overlay.classList.add('hidden');
+
+  if (!anacondaGltf) {
+    showToast('⚠️ Modelo no disponible. Usa la vista 3D vacía o vuelve a intentar.');
+    showRetryButton();
+  }
 
   showHint();
 
@@ -345,14 +404,43 @@ function onResize() {
   renderer.setSize(w, h);
 }
 
+function showRetryButton() {
+  const existing = document.getElementById('bioma-retry-btn');
+  if (existing) return;
+  const btn = document.createElement('button');
+  btn.id = 'bioma-retry-btn';
+  btn.className = 'bioma-ar-btn';
+  btn.textContent = '🔄 Reintentar';
+  btn.onclick = async () => {
+    const ol = document.getElementById('loading-overlay');
+    if (ol) {
+      ol.classList.remove('hidden');
+      ol.querySelector('p').textContent = 'Reintentando…';
+    }
+    const bar = document.querySelector('.bioma-loading-bar');
+    if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+    const rbtn = document.getElementById('bioma-retry-btn');
+    if (rbtn && rbtn.parentNode) rbtn.parentNode.removeChild(rbtn);
+    stopBioma();
+    await initBioma();
+  };
+  document.body.appendChild(btn);
+}
+
 export function stopBioma() {
   if (inAR) exitAR();
 
   running = false;
   if (animFrameId) cancelAnimationFrame(animFrameId);
 
-  if (controls) controls.dispose();
-  if (renderer) renderer.dispose();
+  disposeModel();
+
+  if (controls) { controls.dispose(); controls = null; }
+  if (renderer) {
+    renderer.renderLists?.dispose?.();
+    renderer.dispose();
+    renderer = null;
+  }
 
   const canvas = document.getElementById('bioma-canvas');
   if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);

@@ -1,4 +1,5 @@
-import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { createWithFallback } from './detector.js';
 
 let running = false;
 let poseLandmarker;
@@ -25,21 +26,10 @@ const BODY_LABELS = {
 };
 
 export async function initPullup() {
-  const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-  );
-  try {
-    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "GPU" },
-      runningMode: "VIDEO", numPoses: 1,
-    });
-  } catch {
-    console.warn("GPU no disponible para Pull-up, usando CPU");
-    poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task", delegate: "CPU" },
-      runningMode: "VIDEO", numPoses: 1,
-    });
-  }
+  poseLandmarker = await createWithFallback(PoseLandmarker, {
+    baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task" },
+    runningMode: "VIDEO", numPoses: 1,
+  }, "Pull-up");
 
   state = "waiting"; reps = 0; isAbove = false; barY = 0;
   handsUpFrames = 0; particles = []; flashAlpha = 0;

@@ -6,7 +6,8 @@
  * Sin mano   → gravedad normal, bolas caen
  */
 
-import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+import { getHandLandmarker, createWithFallback } from './detector.js';
 
 let running     = false;
 let animFrameId = null;
@@ -89,13 +90,13 @@ function closest(px, py) {
 // ─── Init ────────────────────────────────────────────────────────────────────
 export async function initAntigravedad() {
     await loadMatter();
-    const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-    );
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions:{ modelAssetPath:"public/models/hand_landmarker.task", delegate:"GPU" },
-        runningMode:"VIDEO", numHands:2,
-    });
+    handLandmarker = getHandLandmarker();
+    if (!handLandmarker) {
+        handLandmarker = await createWithFallback(HandLandmarker, {
+            baseOptions: { modelAssetPath: "public/models/hand_landmarker.task" },
+            runningMode: "VIDEO", numHands: 2,
+        }, "Antigravedad");
+    }
 
     const cv = document.getElementById("output_canvas");
     setupWorld(cv.width||1280, cv.height||720);
