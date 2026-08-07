@@ -17,15 +17,15 @@ const sectionTitle = document.getElementById('section-title');
 
 const sectionConfig = {
     game:         { title: 'Flappy Nose',           init: initFlappyGame,     stop: stopFlappyGame },
-    animals:      { title: 'Animales AR',           init: initAnimalsAR,      stop: stopAnimalsAR },
+    // animals:      { title: 'Animales AR',           init: initAnimalsAR,      stop: stopAnimalsAR },
     senias:       { title: 'Traductor de Señas',    init: initSenias,         stop: stopSenias },
     airpiano:     { title: 'Air Piano',             init: initAirPiano,       stop: stopAirPiano },
     voicebird:    { title: 'Flappy Curl',            init: initVoiceBird,      stop: stopVoiceBird },
-    pullup:       { title: 'Pull-up Coach',         init: initPullup,         stop: stopPullup },
-    donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
-    antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },
+    // pullup:       { title: 'Pull-up Coach',         init: initPullup,         stop: stopPullup },
+    // donkeyfitness:{ title: 'Donkey Kong Fitness',   init: initDonkeyFitness,  stop: stopDonkeyFitness },
+    // antigravedad: { title: 'Antigravedad PUCE',     init: initAntigravedad,   stop: stopAntigravedad },
     vozsenias:    { title: 'Voz a Señas',           init: initVozSenias,      stop: stopVozSenias, noCamera: true },
-    bioma:        { title: 'Bioma AR',              init: initBioma,          stop: stopBioma },
+    // bioma:        { title: 'Bioma AR',              init: initBioma,          stop: stopBioma },
 };
 
 initHomeScene();

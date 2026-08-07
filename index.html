@@ -36,25 +36,28 @@
         </div>
 
         <div class="menu-grid">
+          <!-- Secciones deshabilitadas (comentadas): animals, bioma
           <button class="card card-brand" onclick="window.showSection('animals')">
             <span class="card-kicker">naturaleza</span>
             <span class="card-title">Animales AR</span>
             <span class="card-copy">Revela la fauna del Yasuní moviendo tus manos frente a la cámara.</span>
           </button>
-          <button class="card" onclick="window.showSection('senias')">
-            <span class="card-kicker">gestos</span>
-            <span class="card-title">Lengua de señas</span>
-            <span class="card-copy">Reconocimiento visual para traducir señales frente al espejo.</span>
-          </button>
-          <button class="card" onclick="window.showSection('vozsenias')">
-            <span class="card-kicker">voz + señas</span>
-            <span class="card-title">Voz a Señas</span>
-            <span class="card-copy">Habla y el sistema traduce a lengua de señas con imágenes en tiempo real.</span>
-          </button>
           <button class="card card-brand" onclick="window.showSection('bioma')">
             <span class="card-kicker">AR · 3D</span>
             <span class="card-title">Bioma AR</span>
             <span class="card-copy">Explora el bosque del Yasuní en 3D. Carga el modelo, gíralo y vive la experiencia AR desde tu cámara.</span>
+          </button>
+          -->
+
+          <button class="card card-featured" onclick="window.showSection('vozsenias')">
+            <span class="card-kicker">voz + señas</span>
+            <span class="card-title">Voz a Señas</span>
+            <span class="card-copy">Habla y el sistema traduce a lengua de señas con imágenes en tiempo real.</span>
+          </button>
+          <button class="card card-featured card-featured-mint" onclick="window.showSection('senias')">
+            <span class="card-kicker">gestos</span>
+            <span class="card-title">Lengua de señas</span>
+            <span class="card-copy">Reconocimiento visual para traducir señales frente al espejo.</span>
           </button>
         </div>
 
@@ -75,6 +78,8 @@
             <span class="card-title">Flappy Curl</span>
             <span class="card-copy">Controla el vuelo con curls de bíceps. Flexiona los brazos para que el pájaro vuele.</span>
           </button>
+
+          <!-- Secciones deshabilitadas (comentadas): pullup, donkeyfitness, antigravedad
           <button class="card" onclick="window.showSection('pullup')">
             <span class="card-kicker">fitness</span>
             <span class="card-title">Pull-up Coach</span>
@@ -90,6 +95,7 @@
             <span class="card-title">Antigravedad PUCE</span>
             <span class="card-copy">Un reto orbital con partículas, movimiento y precisión.</span>
           </button>
+          -->
         </div>
       </div>
     </section>
@@ -113,6 +119,24 @@
         </div>
       </div>
     </section>
+
+    <footer class="app-footer">
+      <details class="footer-details">
+        <summary>🛠️ Herramientas y tecnologías</summary>
+        <div class="footer-content">
+          <p>Este proyecto fue construido con tecnologías de código abierto y librerías web:</p>
+          <ul>
+            <li><strong>Three.js</strong> — Motor 3D para renderizado y realidad aumentada.</li>
+            <li><strong>MediaPipe (Google)</strong> — Visión por computadora para detección de manos, pose y rostro.</li>
+            <li><strong>Matter.js</strong> — Física 2D para simulaciones de gravedad.</li>
+            <li><strong>Web Speech API</strong> — Reconocimiento de voz a texto.</li>
+            <li><strong>Web Audio API</strong> — Síntesis de audio para el piano y controles.</li>
+            <li><strong>WebXR</strong> — Soporte de realidad aumentada en dispositivos móviles.</li>
+          </ul>
+          <p class="footer-note">Proyecto educativo · Mirror Lab · Pontificia Universidad Católica del Ecuador (PUCE)</p>
+        </div>
+      </details>
+    </footer>
 
     <script type="module" src="js/main.js"></script>
   </body>
