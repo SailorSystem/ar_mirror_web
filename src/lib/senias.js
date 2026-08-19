@@ -1,12 +1,9 @@
-import {
-  HandLandmarker,
-  DrawingUtils,
-} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-import { getHandLandmarker, createWithFallback } from './mediapipe.js';
+import { getHandLandmarker, createWithFallback, loadTasksVision } from './mediapipe.js';
 
 let handLandmarker;
 let running = false;
 let canvas, ctx, drawingUtils;
+let handLandmarkerClass = null;
 let dictionary = null;
 let gestureDict = null;
 let refs = null;
@@ -37,6 +34,8 @@ let displayedGestureTs = 0;
 export async function initSenias(refsArg) {
   refs = refsArg;
 
+  const { HandLandmarker, DrawingUtils } = await loadTasksVision();
+  handLandmarkerClass = HandLandmarker;
   handLandmarker = getHandLandmarker();
   if (!handLandmarker) {
     handLandmarker = await createWithFallback(
@@ -303,7 +302,7 @@ function render() {
       for (let idx = 0; idx < hr.landmarks.length; idx++) {
         const lm = hr.landmarks[idx];
 
-        drawingUtils.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, { color: "#00FF88", lineWidth: 3 });
+        drawingUtils.drawConnectors(lm, handLandmarkerClass.HAND_CONNECTIONS, { color: "#00FF88", lineWidth: 3 });
         drawingUtils.drawLandmarks(lm, { color: "#FFF", lineWidth: 1, radius: 3 });
 
         const key = getHandKey(lm, idx, hr);

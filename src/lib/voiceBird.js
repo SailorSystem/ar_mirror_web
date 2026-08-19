@@ -1,5 +1,4 @@
-import { PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-import { createWithFallback } from './mediapipe.js';
+import { createWithFallback, loadTasksVision } from './mediapipe.js';
 
 let poseLandmarker;
 let running = false;
@@ -84,6 +83,7 @@ export async function initVoiceBird(refsArg) {
   ctx = canvas.getContext("2d");
 
   try {
+    const { PoseLandmarker } = await loadTasksVision();
     poseLandmarker = await createWithFallback(PoseLandmarker, {
       baseOptions: { modelAssetPath: "public/models/pose_landmarker_lite.task" },
       runningMode: "VIDEO", numPoses: 1,

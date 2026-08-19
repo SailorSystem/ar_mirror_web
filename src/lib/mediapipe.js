@@ -3,6 +3,22 @@ let detectionRunning = false;
 
 const statusEl = () => document.getElementById("loading-status");
 
+let tasksVisionPromise = null;
+
+export function loadTasksVision() {
+  if (!tasksVisionPromise) {
+    tasksVisionPromise = import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"
+    ).then((m) => ({
+      HandLandmarker: m.HandLandmarker,
+      FaceLandmarker: m.FaceLandmarker,
+      PoseLandmarker: m.PoseLandmarker,
+      DrawingUtils: m.DrawingUtils,
+    }));
+  }
+  return tasksVisionPromise;
+}
+
 export function getHandLandmarker() {
   return handLandmarker;
 }
