@@ -105,7 +105,7 @@ En los diccionarios ML cada gesto lleva `word`, `module` (categoría origen del 
 
 ---
 
-## 7. Relación con el catálogo de Adrián (catálogo común propuesto)
+## 7. Relación con el otro catologo
 
 La propuesta acordada: **un catálogo común de señas que comparten ambas aplicaciones, manteniendo cada app sus datos técnicos separados**. Los videos **no** se guardan en la base de datos; esta solo contiene el identificador, nombre, categoría y dirección del archivo.
 
