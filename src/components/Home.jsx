@@ -19,6 +19,8 @@ const CARDS = [
   },
 ];
 
+const SHOW_GAMES = false;
+
 const GAME_CARDS = [
   {
     section: 'game',
@@ -79,12 +81,16 @@ export default function Home({ onSelect }) {
           ))}
         </div>
 
-        <h2 className="group-title">Suite de Juegos</h2>
-        <div className="menu-grid menu-games">
-          {GAME_CARDS.map((card) => (
-            <Card key={card.section} card={card} onSelect={onSelect} />
-          ))}
-        </div>
+        {SHOW_GAMES && (
+          <>
+            <h2 className="group-title">Suite de Juegos</h2>
+            <div className="menu-grid menu-games">
+              {GAME_CARDS.map((card) => (
+                <Card key={card.section} card={card} onSelect={onSelect} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
