@@ -6,6 +6,13 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url))
 const STATIC_DIRS = ['assets', 'lib', 'public']
+const DIST_DIRS = [
+  'assets/LSEC/abecedario',
+  'assets/LSEC/gestoswebm',
+  'assets/textures',
+  'lib',
+  'public',
+]
 
 const MIME = {
   '.webm': 'video/webm',
@@ -37,10 +44,13 @@ function serveRootStatics(staticDirs) {
       })
     },
     closeBundle() {
-      for (const d of staticDirs) {
+      for (const d of DIST_DIRS) {
         const src = path.join(ROOT, d)
         if (!fs.existsSync(src)) continue
-        fs.cpSync(src, path.join(ROOT, 'dist', d), { recursive: true })
+        fs.cpSync(src, path.join(ROOT, 'dist', d), {
+          recursive: true,
+          filter: (f) => !f.endsWith(':Zone.Identifier'),
+        })
       }
     },
   }
@@ -49,6 +59,7 @@ function serveRootStatics(staticDirs) {
 export default defineConfig({
   plugins: [react(), serveRootStatics(STATIC_DIRS)],
   base: './',
+  publicDir: false,
   build: {
     outDir: 'dist',
     target: 'es2020',
