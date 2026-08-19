@@ -2,88 +2,196 @@
 
 Experiencias de cámara, gestos y realidad aumentada con interfaz tipo cristal, profundidad 3D y energía espacial.
 
-## Secciones
+**Stack actual:** React 18 + Vite, MediaPipe Tasks Vision, Three.js, Web Speech API, Web Audio API y WebXR. El sitio se sirve 100 % estático (HTML/JS/CSS compilados en `dist/`).
 
-### Animales AR
-Revela la fauna del Yasuní moviendo las manos frente a la cámara. La niebla digital se disipa con el movimiento, mostrando fotos reales de animales (jaguar, anaconda, mono capuchino, búho moteado, delfín rosado).
-- **Modelo:** Hand Landmarker (MediaPipe)
-- **Mecánica:** Manos como "borrador" con `destination-out` compositing
+---
 
-### Lengua de Señas (LSEC)
-Reconocimiento visual en tiempo real del alfabeto dactilológico LSEC (A-Z, Ñ) y gestos/expresiones. Panel dual con detección simultánea de ambas manos. El diccionario de gestos se carga desde lotes numerados (`diccionario_01.json`, `diccionario_02.json`) divididos por tamaño (< 100 MB cada uno).
-- **Modelo:** Hand Landmarker (MediaPipe)
-- **Alfabeto:** Distancias pairwise + estado de dedos + voto sobre ventana de 10 frames
-- **Gestos:** Voting con ventana de 20 frames, hold de 3s, debounce de 500ms
-- **Diccionario:** 199 gestos en 2 lotes (~109 MB total), cargados desde `lib/lsec_gestos/`
-- **Dataset origen** `assets/LSEC2/` (excluido de git, ~4 GB en disco)
+## 1. Cómo funciona el traductor de voz / texto a lengua de señas
 
-### Voz a Señas
-Reconocimiento de voz (Web Speech API) que traduce el habla a lengua de señas. Muestra una fila de tarjetas con GIFs/videos de cada palabra o letra detectada, con cola de reproducción y control de velocidad.
-- **API:** Web Speech API (es-ES)
-- **Visualización:** WebM animados para gestos/frases, imágenes para letras, videos para J/Ñ/Z
-- **Cola de reproducción:** Auto-play secuencial con slider de duración (1-10s)
-- **Cobertura:** ~214 entradas (174 palabras + 40 frases) + todo el alfabeto A-ZÑ, cargadas desde el manifiesto `lib/lsec_gestos/videos_index.json`
-- **Matcheo:** Glotón por frases completas (`BUENOS DIAS`, `NECESITAS AYUDA`) antes de palabra suelta o letra
+La sección **Voz a Señas** convierte el habla (o texto) en una secuencia de tarjetas con la seña correspondiente:
 
-### Bioma AR (WebXR)
-Visor 3D del modelo Yasuní en navegador. Soporta rotación táctil, control por teclado, y modo AR (WebXR) en dispositivos móviles compatibles.
-- **Motor:** Three.js
-- **AR:** WebXR `immersive-ar` en Android
-- **Modelo:** GLB del bosque Yasuní (~16 MB, excluido de git)
+1. **Reconocimiento de voz** — usa la **Web Speech API** (idioma `es-ES`) del navegador. No envía audio a ningún servidor: el reconocimiento corre localmente en Chrome/Edge/Safari.
+2. **Normalización** — el texto se convierte a mayúsculas, se quitan tildes y caracteres no alfabéticos, conservando `Ñ`.
+3. **Matcheo de frases primero** — se buscan frases completas del catálogo (ej. `BUENOS DIAS`, `NECESITAS AYUDA`) antes de caer a palabra suelta o letra. Esto permite frases con significado propio.
+4. **Cola de reproducción** — cada palabra/letra enqueuea su seña y se reproduce en secuencia con un slider de duración (1–10 s por tarjeta).
+5. **Visualización** — según el tipo de entrada muestra:
+   - **Gesto/frase** → video `WebM` animado (`assets/LSEC/gestoswebm/`).
+   - **Letra (mayoría del alfabeto)** → imagen `JPG` (`assets/LSEC/abecedario/`).
+   - **Letras con material animado `J`, `Ñ`, `Z`** → video MP4 (`assets/LSEC/abecedario/`).
 
-### Flappy Nose
-Controla el pájaro con la nariz. Sigue el eje vertical y horizontal del rostro.
-- **Modelo:** Face Landmarker (MediaPipe)
-- **Mecánica:** Colisión con tuberías + compensación de espejo
+También existe **Lengua de Señas (LSEC)** que reconoce el alfabeto dactilológico y gestos en tiempo real por cámara usando MediaPipe Hand Landmarker (distancias pairwise + estado de dedos + votación por ventana de frames).
 
-### Flappy Voice
-Controla el pájaro con la voz — entre más agudo, más alto vuela.
-- **API:** Web Audio API (AnalyserNode, frecuencia dominante)
-- **Gameplay:** Misma física que Flappy Nose pero control por tono de voz
+---
 
-### Air Piano
-8 teclas virtuales suspendidas en el aire que se activan al tocar con la yema del dedo índice.
-- **Modelo:** Hand Landmarker (MediaPipe)
-- **Audio:** Oscillators Web Audio con formas de onda y escalas
+## 2. Dónde están guardados los recursos
 
-### Pull-up Coach
-Entrenador de dominadas con IA. La cámara detecta la posición del cuerpo y cuenta repeticiones automáticamente.
-- **Modelo:** Pose Landmarker (MediaPipe)
-- **Detección:** Umbral de altura de manos sobre la barra virtual
+Los recursos viven **dentro del propio proyecto** (repo git) en estas rutas:
 
-### Donkey Kong Fitness
-Sistema de sentadillas asistido por visión. Detecta la flexión de rodilla/cadera para contar repeticiones.
-- **Modelo:** Pose Landmarker (MediaPipe)
-- **Métrica:** Diferencia cadera-rodilla para detectar posición baja/alta
+| Recurso | Ruta | Tamaño aprox. |
+|---|---|---|
+| Videos de gestos/frases (WebM) | `assets/LSEC/gestoswebm/` | 83 MB |
+| Imágenes de letras + videos J/Ñ/Z | `assets/LSEC/abecedario/` | 14 MB |
+| Texturas del juego/logo | `assets/textures/` | ~92 KB |
+| Modelos MediaPipe (.task) | `public/models/` | ~34 MB (hand, face, pose, gesture) |
+| Catálogo abecedario (distancias) | `lib/lsec_abecedario.json` | 0.5 MB |
+| Catálogo de gestos (distancias, 3 lotes) | `lib/lsec_gestos/diccionario_0*.json` | ~110 MB |
+| Manifiesto texto→archivo de video | `lib/lsec_gestos/videos_index.json` | ~0.1 MB |
+| Lista de lotes de diccionario | `lib/lsec_gestos/index.json` | — |
 
-### Antigravedad PUCE
-Simulación física con Matter.js + control por gestos de mano. 18 partículas con paleta cromática PUCE.
-- **Modelo:** Hand Landmarker (MediaPipe) + Matter.js
-- **Gestos:** Puño agarra/atrae partículas; mano abierta las dispersa con repulsión
+> **Ojo:** el dataset origen `assets/LSEC2/` (~4 GB, vídeos `.MTS` brutos) **no** se sube a git; solo está en el equipo de desarrollo (ver `.gitignore`). Todo lo que el sitio necesita en producción está dentro del repo y se copia al `dist/` en el build.
+
+---
+
+## 3. ¿Base de datos, API o solo archivos?
+
+**Solo archivos estáticos incluidos en el proyecto. No hay base de datos ni API.**
+
+- Los catálogos (`*.json`) y los medios (webm/jpg/mp4/models) son archivos servidos por el servidor web como cualquier estático; el navegador los pide por ruta.
+- El reconocimiento de voz y de manos corre **en el cliente** (Web Speech + MediaPipe WASM). MediaPipe se carga bajo demanda desde los CDN jsDelivr/unpkg solo cuando entras a una sección que lo usa (el Home funciona sin depender de ningún CDN).
+- No se requiere ningún servidor de backend, ni credenciales, ni claves API.
+
+---
+
+## 4. Instalación en Hostinger
+
+El proyecto es 100 % estático: basta subir la carpeta `dist/` (resultado del build) al hosting.
+
+**Pasos:**
+
+1. Construir el sitio en un equipo con Node.js 18+:
+   ```bash
+   npm ci
+   npm run build
+   ```
+   Esto genera la carpeta `dist/` (≈ 253 MB) con `index.html`, `assets/`, `lib/` y `public/`.
+
+2. En **Hostinger → hPanel**:
+   - **Publicar/Domains → Manage → File Manager** (o subir por FTP con FileZilla).
+   - Subir el **contenido de `dist/`** a `public_html/` (o subcarpeta si quieres que viva en `/mirror/`).
+   - Asegurar permisos `644` en archivos y `755` en carpetas (Hostinger los asigna por defecto).
+
+3. **HTTPS** — activar el SSL gratuito (Let's Encrypt / AutoSSL) en hPanel y forzar HTTPS. La cámara y el micrófono **requieren** HTTPS (o `localhost`); no funcionan por HTTP simple.
+
+4. **Variables de entorno / credenciales:** **ninguna**. El sitio no usa SDK de Hostinger, ni backend, ni API keys.
+
+5. Verificar en el navegador: **DevTools → Console** sin errores rojos y probar cámara/micrófono de cada sección.
+
+> **Nota sobre tamaño:** el total desplegado (≈ 253 MB incluyendo diccionarios) supera el tráfico de planes de entrada; con el plan normal de Hostinger y almacenamiento SSD es viable. Si se quisiera reducir, los diccionarios de distancias (109 MB) y los WebM (83 MB) son los candidatos a mover a un CDN externo.
+
+---
+
+## 5. Rutas en un dominio nuevo
+
+Todas las rutas dentro del código son **relativas** (ej. `assets/LSEC/gestoswebm/file.webm`, `lib/...`, `public/models/...`) y el build usa `base: './'`. Eso significa que:
+
+- **Cualquier dominio o subcarpeta funciona sin tocar el código.** Solo se sube `dist/` y las rutas resuelven relativas desde donde se sirva.
+- No dependen de GitHub Pages: se probó publicándolo también como carpeta estática en Hostinger.
+- Dentro del código hay 3 URLs absolutas externas a CDN (jsdelivr/unpkg) que se cargan **solo al entrar a las secciones** que usan MediaPipe/Three; no dependen del dominio propio.
+
+---
+
+## 6. Cómo se identifica cada seña
+
+| Ámbito | Identificador | Formato del archivo |
+|---|---|---|
+| **Gesto / frase** | **Nombre normalizado** (la clave del manifest). Ej. `BUENOS DIAS` → `BUENOS_DIAS.webm` | `assets/LSEC/gestoswebm/{nombre}.webm` |
+| **Letra (imagen)** | Código de la letra. Ej. `A`, `CH` | `assets/LSEC/abecedario/{letra}.jpg` |
+| **Letra (video)** | Solo `J`, `Ñ`, `Z` | `assets/LSEC/abecedario/{letra}.mp4` |
+| **Gesto en diccionario ML** | Palabra en minúscula + categoría. Ej. `AGUA` → `category: "alimentos"` | `lib/lsec_gestos/diccionario_0*.json` |
+
+El enlace entre texto hablado y archivo es **`lib/lsec_gestos/videos_index.json`**: un mapa `{ "TEXTO": "ARCHIVO.webm" }` (214 entradas: ~174 palabras + ~40 frases).
+
+En los diccionarios ML cada gesto lleva `word`, `module` (categoría origen del dataset), `category`, `video` (ruta fuente `.MTS`), `fps`, `total_frames` y `frames` con los landmarks (distancias pairwise por mano).
+
+---
+
+## 7. Relación con el catálogo de Adrián (catálogo común propuesto)
+
+La propuesta acordada: **un catálogo común de señas que comparten ambas aplicaciones, manteniendo cada app sus datos técnicos separados**. Los videos **no** se guardan en la base de datos; esta solo contiene el identificador, nombre, categoría y dirección del archivo.
+
+Propuesta de estructura mínima para el catálogo compartido:
+
+```json
+{
+  "id": "BUENOS_DIAS",
+  "nombre": "Buenos días",
+  "categoria": "saludos",
+  "tipo": "frase",
+  "archivo": "assets/LSEC/gestoswebm/BUENOS_DIAS.webm",
+  "formato": "webm"
+}
+```
+
+- **Este proyecto** ya puede exportar su catálogo a ese formato desde `videos_index.json` + los diccionarios. Los datos técnicos ML (landmarks, distancias, config de detección) se quedan privados en `lib/lsec_gestos/`.
+- **Adaptar para el catálogo de Adrián** requiere conocer el formato en que tiene sus muestras (nombres de archivo, categorías, si usa su propia carpeta de videos). Con eso generamos un mapeo/catálogo común sin tocar la lógica de detección.
+
+---
+
+## 8. Dockerfile / carpeta estática Nginx
+
+No hace falta contenedor (el proyecto es estático), pero se puede servir igual con Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name tu-dominio;
+    root /var/www/dist;             # contenido de dist/ que se sube
+    index index.html;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    client_max_body_size 2m;
+}
+```
+
+Si quieren contenerlo:
+
+```dockerfile
+FROM nginx:alpine
+COPY dist/ /usr/share/nginx/html/
+EXPOSE 80
+```
+
+Todos los archivos del sitio ya están en `dist/`, listos para publicarse con Nginx, Hostinger o cualquier servidor estático.
+
+---
+
+## 9. Despliegue local
+
+```bash
+npm ci
+npm run dev      # desarrollo (hot reload)
+npm run build    # producción -> dist/
+npm run preview  # probar el build localmente
+```
+
+Cámara/micrófono funcionan en `localhost` o por HTTPS.
+
+---
+
+## 10. Arquitectura de despliegue producción
+
+- **GitHub Pages:** workflow `.github/workflows/deploy.yml` en cada push a `main`: `npm ci` → `npm run build` → deploy de `dist/` (Fuente en Settings → Pages = **GitHub Actions**).
+- **Hostinger**: subir el contenido de `dist/` a `public_html/` (recomendado mantener GitHub Pages como espejo/backup y Hostinger como dominio oficial).
+
+---
+
+## Documentación por sección
+
+- **Animales AR** — fauna del Yasuní revelada con movimiento de manos (Hand Landmarker, compositing `destination-out`).
+- **Lengua de Señas (LSEC)** — reconocimiento del abecedario y gestos en vivo (Hand Landmarker; 28 letras + 199 gestos).
+- **Voz a Señas** — voz→texto→señas (Web Speech API; ~214 entradas + alfabeto).
+- **Bioma AR (WebXR)** — visor 3D del Yasuní con modo AR mobile (Three.js).
+- **Flappy Nose / Flappy Voice / Flappy Curl** — juegos controlados por rostro, voz y pose.
+- **Air Piano** — piano virtual con dedo índice (Hand Landmarker + Web Audio).
+- **Pull-up Coach / Donkey Kong Fitness** — conteo de dominadas y sentadillas (Pose Landmarker).
+- **Antigravedad PUCE** — simulación física Matter.js con gestos de mano.
 
 ## Tecnologías
 
-- **Frontend:** HTML5, CSS3 (Custom Properties, Flexbox, Grid, Glassmorphism)
-- **Lógica:** JavaScript ES6 Modules, import maps
-- **IA/Visión:** MediaPipe Tasks Vision v0.10.3 (Hand, Face, Pose Landmarker)
-- **3D:** Three.js (escena de fondo + Bioma AR)
-- **Física:** Matter.js (Antigravedad)
-- **Audio:** Web Audio API (Air Piano, Flappy Voice)
-- **Voz:** Web Speech API (Voz a Señas)
-- **AR:** WebXR (Bioma AR)
-- **ML (futuro):** TF.js/ONNX (plan en `public/README_ML_TRAINING.md`)
-
-## Diccionario LSEC
-
-| Archivo | Gestos | Tamaño |
-|---|---|---|
-| `lib/lsec_gestos/diccionario_01.json` | 173 | 94.9 MB |
-| `lib/lsec_gestos/diccionario_02.json` | 26 | 14.0 MB |
-| `lib/lsec_gestos/index.json` | — | lista de lotes |
-
-Generado desde `assets/LSEC2/` (excluido de git) mediante `public/generar_diccionario_gestos.py`.
-
-Los WebM para Voz a Señas (todos los gestos + frases) se generan desde las fuentes `.MTS` de `assets/LSEC2/` con `public/convertir_mts_a_webm.py`, que también produce el manifiesto `lib/lsec_gestos/videos_index.json`.
+React 18 · Vite 5 · MediaPipe Tasks Vision 0.10.3 · Three.js 0.164 · Matter.js · Web Speech API · Web Audio API · WebXR · GitHub Actions + GitHub Pages
 
 ## Color Palette
 
@@ -94,15 +202,6 @@ Los WebM para Voz a Señas (todos los gestos + frases) se generan desde las fuen
 | `--blue-accent` | `#2FA4D9` | Acentos UI |
 | `--cyan-bright` | `#3CC3E6` | Brillos y sombras neón |
 | `--dark` | `#050816` | Base oscura |
-| `--glass` | RGBA(255,255,255,0.08) | Superficies vítreas |
-
-## Despliegue
-
-```bash
-python3 -m http.server 8080
-```
-
-Abrir `http://localhost:8080` en Chrome/Edge (HTTPS o localhost para cámara).
 
 ## Licencia
 
