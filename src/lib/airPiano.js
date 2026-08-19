@@ -1,5 +1,4 @@
-import { HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-import { getHandLandmarker, createWithFallback } from './mediapipe.js';
+import { getHandLandmarker, createWithFallback, loadTasksVision } from './mediapipe.js';
 
 let running = false;
 let handLandmarker;
@@ -152,6 +151,7 @@ export async function initAirPiano(refsArg) {
   refs = refsArg;
   canvas = refs.canvas;
 
+  const { HandLandmarker } = await loadTasksVision();
   handLandmarker = getHandLandmarker();
   if (!handLandmarker) {
     handLandmarker = await createWithFallback(HandLandmarker, {

@@ -1,5 +1,4 @@
-import { FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-import { createWithFallback } from './mediapipe.js';
+import { createWithFallback, loadTasksVision } from './mediapipe.js';
 
 let faceLandmarker;
 let running = false;
@@ -24,6 +23,7 @@ export async function initFlappyGame(refsArg) {
   refs = refsArg;
   canvas = refs.canvas;
 
+  const { FaceLandmarker } = await loadTasksVision();
   faceLandmarker = await createWithFallback(
     FaceLandmarker,
     {
