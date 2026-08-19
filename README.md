@@ -20,9 +20,10 @@ Reconocimiento visual en tiempo real del alfabeto dactilológico LSEC (A-Z, Ñ) 
 ### Voz a Señas
 Reconocimiento de voz (Web Speech API) que traduce el habla a lengua de señas. Muestra una fila de tarjetas con GIFs/videos de cada palabra o letra detectada, con cola de reproducción y control de velocidad.
 - **API:** Web Speech API (es-ES)
-- **Visualización:** GIFs animados para gestos, imágenes para letras, videos para J/Ñ/Z
+- **Visualización:** WebM animados para gestos/frases, imágenes para letras, videos para J/Ñ/Z
 - **Cola de reproducción:** Auto-play secuencial con slider de duración (1-10s)
-- **Cobertura:** 27 palabras mapeadas + todo el alfabeto A-ZÑ
+- **Cobertura:** ~214 entradas (174 palabras + 40 frases) + todo el alfabeto A-ZÑ, cargadas desde el manifiesto `lib/lsec_gestos/videos_index.json`
+- **Matcheo:** Glotón por frases completas (`BUENOS DIAS`, `NECESITAS AYUDA`) antes de palabra suelta o letra
 
 ### Bioma AR (WebXR)
 Visor 3D del modelo Yasuní en navegador. Soporta rotación táctil, control por teclado, y modo AR (WebXR) en dispositivos móviles compatibles.
@@ -81,6 +82,8 @@ Simulación física con Matter.js + control por gestos de mano. 18 partículas c
 | `lib/lsec_gestos/index.json` | — | lista de lotes |
 
 Generado desde `assets/LSEC2/` (excluido de git) mediante `public/generar_diccionario_gestos.py`.
+
+Los WebM para Voz a Señas (todos los gestos + frases) se generan desde las fuentes `.MTS` de `assets/LSEC2/` con `public/convertir_mts_a_webm.py`, que también produce el manifiesto `lib/lsec_gestos/videos_index.json`.
 
 ## Color Palette
 

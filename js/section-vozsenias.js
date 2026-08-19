@@ -9,17 +9,10 @@ let isPlaying = false;
 let displayDuration = 3;
 let lastQueuedWordCount = 0;
 
-const GESTURE_WORDS = {
-    'ABURRIDO':'ABURRIDO','ABUELO':'ABUELO','ALUMNO':'ALUMNO',
-    'AYER':'AYER','BEBER':'BEBER','BIEN':'BIEN','BONITA':'BONITA',
-    'COMER':'COMER','FUTURA':'FUTURA','GUSTAR':'GUSTAR',
-    'INTELIGENTE':'INTELIGENTE','LUNES':'LUNES','MAL':'MAL',
-    'MAMA':'MAMÁ','MANANA':'MAÑANA','MIRAR':'MIRAR',
-    'NECESITA':'NECESITA','PAPA':'PAPÁ','PROFESOR':'PROFESOR',
-    'PUCE':'PUCE','RECORDAR':'RECORDAR','SUEGRO':'SUEGRO',
-    'TIO':'TIO','TOMAR':'TOMAR','UNIVERSIDAD':'UNIVERSIDAD',
-    'VER':'VER','VIERNES':'VIERNES'
-};
+// Manifiesto de gestos: clave normalizada (con espacios en frases) → archivo webm
+const gestureManifest = {};
+// Entradas ordenadas por número de tokens (frases largas primero) para matcheo glotón
+let phraseList = [];
 
 const LETTER_VIDEOS = ['J', 'Ñ', 'Z'];
 
@@ -29,17 +22,32 @@ function normalizeWord(w) {
         .replace(/[^A-ZÑ]/g, '');
 }
 
-function getGestureFilename(word) {
-    return GESTURE_WORDS[normalizeWord(word)] || null;
+async function loadGestureManifest() {
+    try {
+        const resp = await fetch('lib/lsec_gestos/videos_index.json');
+        const data = await resp.json();
+        Object.assign(gestureManifest, data);
+        phraseList = Object.entries(data)
+            .map(([key]) => ({ key, tokens: key.split(' ') }))
+            .sort((a, b) => b.tokens.length - a.tokens.length);
+        console.log(`Videos de gestos cargados: ${phraseList.length}`);
+    } catch (e) {
+        console.error('Error cargando manifiesto de videos:', e);
+        phraseList = [];
+    }
 }
 
 function hasLetterImage(letter) {
     return !LETTER_VIDEOS.includes(letter);
 }
 
+function getGestureFile(norm) {
+    return gestureManifest[norm] || null;
+}
+
 function getWordMedia(norm) {
-    const gestureFile = getGestureFilename(norm);
-    if (gestureFile) return { type: 'gesto', norm: gestureFile };
+    const file = getGestureFile(norm);
+    if (file) return { type: 'gesto', norm, file };
     if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
         if (hasLetterImage(norm)) return { type: 'letra-img', norm };
         return { type: 'letra-video', norm };
@@ -47,7 +55,25 @@ function getWordMedia(norm) {
     return null;
 }
 
+// Busca la entrada más larga del manifiesto que coincida empezando en words[i]
+function matchAt(words, i) {
+    for (const entry of phraseList) {
+        const n = entry.tokens.length;
+        if (i + n > words.length) continue;
+        let ok = true;
+        for (let j = 0; j < n; j++) {
+            if (normalizeWord(words[i + j]) !== entry.tokens[j]) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) return entry;
+    }
+    return null;
+}
+
 export async function initVozSenias() {
+    await loadGestureManifest();
     createUI();
     startSpeechRecognition();
 }
@@ -112,7 +138,9 @@ function createUI() {
         if (!card) return;
         const type = card.dataset.type;
         const norm = card.dataset.norm;
-        if (type && norm) {
+        if (type === 'gesto') {
+            addToQueue(type, norm, card.dataset.file);
+        } else if (type && norm) {
             addToQueue(type, norm);
         }
     });
@@ -219,18 +247,25 @@ function processNewFinalWords() {
     const words = fullTranscript.split(/\s+/).filter(w => w.length > 0);
     if (words.length <= lastQueuedWordCount) return;
 
-    for (let i = lastQueuedWordCount; i < words.length; i++) {
-        const norm = normalizeWord(words[i]);
-        const media = getWordMedia(norm);
-        if (media) {
-            addToQueue(media.type, media.norm);
+    let i = lastQueuedWordCount;
+    while (i < words.length) {
+        const entry = matchAt(words, i);
+        if (entry) {
+            addToQueue('gesto', entry.key, gestureManifest[entry.key]);
+            i += entry.tokens.length;
+        } else {
+            const media = getWordMedia(normalizeWord(words[i]));
+            if (media) {
+                addToQueue(media.type, media.norm, media.file);
+            }
+            i++;
         }
     }
     lastQueuedWordCount = words.length;
 }
 
-function addToQueue(type, norm) {
-    videoQueue.push({ type, norm });
+function addToQueue(type, norm, file) {
+    videoQueue.push({ type, norm, file });
     if (!isPlaying) playNext();
 }
 
@@ -242,7 +277,7 @@ function playNext() {
 
     isPlaying = true;
     const item = videoQueue.shift();
-    showInPlayer(item.type, item.norm);
+    showInPlayer(item);
 
     setTimeout(() => {
         playNext();
@@ -259,29 +294,27 @@ function updateTranscript() {
     el.innerHTML = displayText || '<span class="vs-placeholder">Habla al micrófono para comenzar...</span>';
 }
 
-function showInPlayer(type, file) {
+function showInPlayer(item) {
     const player = document.getElementById('vs-video-player');
-    if (type === 'gesto') {
-        const gestureFile = file;
+    if (item.type === 'gesto') {
         player.innerHTML = `
             <div class="vs-player-content">
-                <img class="vs-player-gesture-img" src="assets/LSEC/gestosgif/${gestureFile}.gif" alt="${gestureFile}" onerror="this.style.display='none'" />
-                <video class="vs-player-video" src="assets/LSEC/gestoswebm/${gestureFile}.webm" autoplay playsinline></video>
-                <span class="vs-player-label">${gestureFile}</span>
+                <video class="vs-player-video" src="assets/LSEC/gestoswebm/${item.file}" autoplay playsinline></video>
+                <span class="vs-player-label">${item.norm}</span>
             </div>
         `;
-    } else if (type === 'letra-img') {
+    } else if (item.type === 'letra-img') {
         player.innerHTML = `
             <div class="vs-player-content">
-                <img class="vs-player-gesture-img" src="assets/LSEC/abecedario/${file}.jpg" alt="${file}" />
-                <span class="vs-player-label">${file}</span>
+                <img class="vs-player-gesture-img" src="assets/LSEC/abecedario/${item.norm}.jpg" alt="${item.norm}" />
+                <span class="vs-player-label">${item.norm}</span>
             </div>
         `;
-    } else if (type === 'letra-video') {
+    } else if (item.type === 'letra-video') {
         player.innerHTML = `
             <div class="vs-player-content">
-                <video class="vs-player-video" src="assets/LSEC/abecedario/${file}.mp4" autoplay loop muted playsinline></video>
-                <span class="vs-player-label">${file}</span>
+                <video class="vs-player-video" src="assets/LSEC/abecedario/${item.norm}.mp4" autoplay loop muted playsinline></video>
+                <span class="vs-player-label">${item.norm}</span>
             </div>
         `;
     }
@@ -298,50 +331,62 @@ function updateSigns() {
     }
 
     const words = text.split(/\s+/).filter(w => w.length > 0);
+    const lastIdx = words.length - 1;
+    let html = '';
 
-    scrollEl.innerHTML = words.map((word, idx) => {
-        const norm = normalizeWord(word);
-        const displayWord = word.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ]/g, '');
-        if (!norm) return '';
-        const isLast = idx === words.length - 1;
-        const cls = isLast ? ' vs-sign-card-new' : '';
-
-        const gestureFile = getGestureFilename(norm);
-        if (gestureFile) {
-            return `
-                <div class="vs-sign-card vs-sign-card-video${cls}" data-type="gesto" data-norm="${gestureFile}" data-index="${idx}">
+    let i = 0;
+    while (i < words.length) {
+        const entry = matchAt(words, i);
+        if (entry) {
+            const phraseWords = words.slice(i, i + entry.tokens.length);
+            const displayWord = phraseWords.join(' ').replace(/[^\w\sáéíóúÁÉÍÓÚñÑ]/g, '');
+            const isLast = i + entry.tokens.length - 1 === lastIdx;
+            html += `
+                <div class="vs-sign-card vs-sign-card-video${isLast ? ' vs-sign-card-new' : ''}"
+                     data-type="gesto" data-norm="${entry.key}" data-file="${gestureManifest[entry.key]}" data-index="${i}">
                     <span class="vs-sign-label">${displayWord}</span>
-                    <img class="vs-sign-img" src="assets/LSEC/gestosgif/${gestureFile}.gif" alt="${displayWord}">
+                    <video class="vs-sign-video" src="assets/LSEC/gestoswebm/${gestureManifest[entry.key]}"
+                        autoplay loop muted playsinline></video>
                 </div>
             `;
+            i += entry.tokens.length;
+            continue;
         }
+
+        const word = words[i];
+        const norm = normalizeWord(word);
+        const displayWord = word.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ]/g, '');
+        const isLast = i === lastIdx;
+        const cls = isLast ? ' vs-sign-card-new' : '';
 
         if (norm.length === 1 && /[A-ZÑ]/.test(norm)) {
             if (hasLetterImage(norm)) {
-                return `
-                    <div class="vs-sign-card vs-sign-card-img${cls}" data-type="letra-img" data-norm="${norm}" data-index="${idx}">
+                html += `
+                    <div class="vs-sign-card vs-sign-card-img${cls}" data-type="letra-img" data-norm="${norm}" data-index="${i}">
                         <span class="vs-sign-label">${norm}</span>
                         <img class="vs-sign-img" src="assets/LSEC/abecedario/${norm}.jpg" alt="${norm}">
                     </div>
                 `;
             } else {
-                return `
-                    <div class="vs-sign-card vs-sign-card-video${cls}" data-type="letra-video" data-norm="${norm}" data-index="${idx}">
+                html += `
+                    <div class="vs-sign-card vs-sign-card-video${cls}" data-type="letra-video" data-norm="${norm}" data-index="${i}">
                         <span class="vs-sign-label">${norm}</span>
                         <video class="vs-sign-video" src="assets/LSEC/abecedario/${norm}.mp4" autoplay loop muted playsinline></video>
                     </div>
                 `;
             }
+        } else if (norm) {
+            html += `
+                <div class="vs-sign-card vs-sign-card-text${cls}" data-index="${i}">
+                    <span class="vs-sign-label">${displayWord}</span>
+                    <span class="vs-text-badge">${displayWord}</span>
+                </div>
+            `;
         }
+        i++;
+    }
 
-        return `
-            <div class="vs-sign-card vs-sign-card-text${cls}" data-index="${idx}">
-                <span class="vs-sign-label">${displayWord}</span>
-                <span class="vs-text-badge">${displayWord}</span>
-            </div>
-        `;
-    }).join('');
-
+    scrollEl.innerHTML = html || '<div class="vs-signs-empty">Las señas aparecerán aquí</div>';
     scrollEl.scrollLeft = scrollEl.scrollWidth;
 }
 
