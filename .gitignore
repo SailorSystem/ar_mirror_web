@@ -1,9 +1,12 @@
-referencias/ 
-instrucciones.txt
-cambios.txt
-.gitignore
-assets/yasuni/3d/entorno/bosque2.glb
+node_modules/
+dist/
+*.log
+
+# Archivos temporales / de descarga (Windows Zone.Identifier)
+*:Zone.Identifier
+
+# Datasets y archivos pesados de conversión (no se versionan)
 assets/LSEC2/
 assets/LSEC/gestosapng/
 assets/LSEC_Videos_LSEC.zip
-assets/LSEC_Videos_LSEC.zip:Zone.Identifier
+referencias/
