@@ -130,7 +130,7 @@ body::after {
 
 .hero-logo {
     display: block;
-    width: min(360px, 66vw);
+    width: min(240px, 52vw);
     height: auto;
 }
 
@@ -676,7 +676,7 @@ nav {
     .hero-shell { border-radius: 16px; padding: 14px; }
     .hero-eyebrow { font-size: .6rem; }
     .hero-logo-badge { padding: 6px 14px; border-radius: 14px; }
-    .hero-logo { width: min(240px, 74vw); }
+    .hero-logo { width: min(180px, 60vw); }
     h1 { font-size: clamp(1.4rem, 6vw, 2rem); }
     .hero-copy { font-size: .82rem; }
     .card { min-height: 100px; padding: 12px 14px; gap: 4px; border-radius: 18px; }
