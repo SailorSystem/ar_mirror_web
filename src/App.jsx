@@ -24,7 +24,7 @@ export default function App() {
   return (
     <>
       <nav id="top-nav" className={active === 'home' ? 'hidden' : ''}>
-        <img src="assets/textures/LOGO_PUCE_80_A%C3%91OS.png" alt="PUCE 80 años" className="nav-logo" />
+        <img src="assets/textures/logo80new.png" alt="PUCE 80 años" className="nav-logo" />
         <button id="btn-home" onClick={goHome}>🏠 Inicio</button>
         <span id="section-title">{config?.title || 'Sección'}</span>
       </nav>

@@ -19,6 +19,8 @@ const CARDS = [
   },
 ];
 
+const SHOW_GAMES = false;
+
 const GAME_CARDS = [
   {
     section: 'game',
@@ -67,7 +69,7 @@ export default function Home({ onSelect }) {
         <div className="hero-shell">
           <span className="hero-eyebrow">Mirror Lab · PUCE</span>
           <div className="hero-logo-badge">
-            <img src="assets/textures/LOGO_PUCE_80_A%C3%91OS.png" alt="PUCE 80 años" className="hero-logo" />
+            <img src="assets/textures/logo80new.png" alt="PUCE 80 años" className="hero-logo" />
           </div>
           <h1>AR Mirror Web</h1>
           <p className="hero-copy">Experiencias de cámara, gestos y realidad aumentada con una interfaz tipo cristal, profundidad 3D y energía espacial.</p>
@@ -79,12 +81,16 @@ export default function Home({ onSelect }) {
           ))}
         </div>
 
-        <h2 className="group-title">Suite de Juegos</h2>
-        <div className="menu-grid menu-games">
-          {GAME_CARDS.map((card) => (
-            <Card key={card.section} card={card} onSelect={onSelect} />
-          ))}
-        </div>
+        {SHOW_GAMES && (
+          <>
+            <h2 className="group-title">Suite de Juegos</h2>
+            <div className="menu-grid menu-games">
+              {GAME_CARDS.map((card) => (
+                <Card key={card.section} card={card} onSelect={onSelect} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
